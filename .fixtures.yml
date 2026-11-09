@@ -1,0 +1,24 @@
+---
+fixtures:
+  forge_modules:
+    stdlib:
+      repo: "puppetlabs/stdlib"
+      ref: "10.1.0"
+    python:
+      repo: "puppet/python"
+      ref: "10.1.0"
+    epel:
+      repo: "puppet/epel"
+      ref: "6.0.0"
+    systemd:
+      repo: "puppet/systemd"
+      ref: "11.0.0"
+    inifile:
+      repo: "puppetlabs/inifile"
+      ref: "6.5.0"
+    node_encrypt:
+      repo: "puppetlabs/node_encrypt"
+      ref: "3.1.0"
+    yumrepo_core:
+      repo: "puppetlabs/yumrepo_core"
+      ref: "2.1.0"

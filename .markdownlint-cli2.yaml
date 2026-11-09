@@ -1,0 +1,28 @@
+# Shared markdown standard. Copy this file into the root of anything you lint
+# from: markdownlint-cli2 only merges configs from the working directory
+# downward, so a config above cwd is invisible.
+config:
+  # Prose is not wrapped, and a table row cannot be wrapped at all.
+  MD013: false
+  # Blank-line pedantry around headings and consecutive blanks. Both are
+  # cosmetic and neither survives contact with Obsidian's editor.
+  MD012: false
+  MD022: false
+  # Tables are written by hand and by tooling; pipe padding is not worth a
+  # failing lint run.
+  MD060: false
+  # Bare URLs are how links get pasted into notes.
+  MD034: false
+  # Inline HTML, which Obsidian callouts and embeds rely on.
+  MD033: false
+  # Bold text used as a section marker. Changelogs group entries under
+  # **Features**, **Fixes** and **Breaking**, and promoting those to real
+  # headings would put every release's subsections into the document outline
+  # and swamp it. The rule cannot tell that convention apart from someone
+  # bolding a line because they could not be bothered writing a heading.
+  MD036: false
+  # Duplicate headings. A running log legitimately repeats a date, and a deck
+  # repeats a customer name under different sections. siblings_only would still
+  # flag the daily notes that carry two meetings with the same subheadings.
+  MD024: false
+

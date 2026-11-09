@@ -1,0 +1,7 @@
+<%- |
+String[1] $gmp_username,
+Sensitive[String[1]] $gmp_password,
+| -%>
+[gmp]
+username = <%= regsubst(strip($gmp_username), '%', '%%', 'G') %>
+password = <%= regsubst(strip($gmp_password.unwrap), '%', '%%', 'G') %>

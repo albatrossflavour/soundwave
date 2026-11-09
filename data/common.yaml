@@ -1,0 +1,6 @@
+---
+lookup_options:
+  soundwave::pe_token:
+    convert_to: "Sensitive"
+  soundwave::gmp_password:
+    convert_to: "Sensitive"

@@ -1,0 +1,7 @@
+{
+  "puppet_task_version": 1,
+  "supports_noop": false,
+  "description": "Collect the Greenbone cassette and push the merged findings to PE",
+  "input_method": "stdin",
+  "parameters": {}
+}

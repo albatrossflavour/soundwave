@@ -1,0 +1,2 @@
+# Test-only. Nothing here is needed to run the transformer; see requirements.txt.
+pytest

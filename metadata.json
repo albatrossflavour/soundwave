@@ -1,0 +1,68 @@
+{
+  "name": "albatrossflavour-soundwave",
+  "version": "0.1.0",
+  "author": "Tony Green",
+  "summary": "Merge findings from any number of vulnerability scanners and push one set into PE Vulnerability Remediation",
+  "license": "Apache-2.0",
+  "source": "https://github.com/albatrossflavour/soundwave",
+  "project_page": "https://github.com/albatrossflavour/soundwave",
+  "issues_url": "https://github.com/albatrossflavour/soundwave/issues",
+  "dependencies": [
+    {
+      "name": "puppet/python",
+      "version_requirement": ">= 8.0.0 < 11.0.0"
+    },
+    {
+      "name": "puppet/systemd",
+      "version_requirement": ">= 8.0.0 < 12.0.0"
+    },
+    {
+      "name": "puppetlabs/node_encrypt",
+      "version_requirement": ">= 3.0.0 < 4.0.0"
+    },
+    {
+      "name": "puppetlabs/stdlib",
+      "version_requirement": ">= 9.0.0 < 11.0.0"
+    }
+  ],
+  "operatingsystem_support": [
+    {
+      "operatingsystem": "Ubuntu",
+      "operatingsystemrelease": [
+        "22.04",
+        "24.04",
+        "26.04"
+      ]
+    },
+    {
+      "operatingsystem": "Debian",
+      "operatingsystemrelease": [
+        "11",
+        "12"
+      ]
+    },
+    {
+      "operatingsystem": "RedHat",
+      "operatingsystemrelease": [
+        "8",
+        "9"
+      ]
+    },
+    {
+      "operatingsystem": "AlmaLinux",
+      "operatingsystemrelease": [
+        "9",
+        "10"
+      ]
+    }
+  ],
+  "requirements": [
+    {
+      "name": "puppet",
+      "version_requirement": ">= 8.0.0 < 9.0.0"
+    }
+  ],
+  "pdk-version": "4.0.1",
+  "template-url": "https://github.com/puppetlabs/pdk-templates#main",
+  "template-ref": "heads/main-0-g8ca954f"
+}

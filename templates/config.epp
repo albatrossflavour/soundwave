@@ -1,0 +1,61 @@
+<%- |
+String[1] $sync_schedule,
+String[1] $python_path,
+String[1] $cert_name,
+Sensitive[String[1]] $pe_token,
+String[1] $pe_host,
+String[1] $transformer_id,
+String[1] $transformer_name,
+String[1] $transformer_description,
+Optional[String[1]] $post_body_filepath,
+String[1] $gmp_config_file,
+String[1] $compose_file,
+String[1] $gmp_service,
+String[1] $gmp_socket_path,
+Optional[String[1]] $scan_name,
+String[1] $docker_cmd,
+Integer[1] $gmp_timeout,
+Optional[String[1]] $host_map_file,
+Optional[String[1]] $metrics_file,
+String[1] $cassette_dir,
+Integer[0, 100] $min_confidence,
+Boolean $correlate,
+Boolean $compose_findings,
+Optional[String[1]] $correlation_exceptions,
+Optional[String[1]] $findings_api_host,
+Stdlib::Port $findings_api_port,
+| -%>
+[DEFAULT]
+schedule = <%= $sync_schedule %>
+python = <%= $python_path %>
+metrics_file = <%= $metrics_file %>
+cassette_dir = <%= $cassette_dir %>
+min_confidence = <%= $min_confidence %>
+correlate = <%= bool2num($correlate) %>
+compose_findings = <%= bool2num($compose_findings) %>
+correlation_exceptions = <%= $correlation_exceptions %>
+findings_api_host = <%= $findings_api_host %>
+findings_api_port = <%= $findings_api_port %>
+[PE]
+register = 1
+ca_cert = /etc/puppetlabs/puppet/ssl/certs/ca.pem
+cert_file = /etc/puppetlabs/puppet/ssl/certs/<%= $cert_name %>.pem
+token = <%= regsubst($pe_token.unwrap, '\n', ' ', 'MG') %>
+key_file = /etc/puppetlabs/puppet/ssl/private_keys/<%= $cert_name %>.pem
+transformer_id = <%= $transformer_id %>
+retry_interval = 10
+max_retries = 3
+name = <%= $transformer_name %>
+description = <%= $transformer_description %>
+host = <%= $pe_host %>
+port = 8146
+post_body_filepath = <%= $post_body_filepath %>
+[GREENBONE]
+gmp_config_file = <%= $gmp_config_file %>
+compose_file = <%= $compose_file %>
+gmp_service = <%= $gmp_service %>
+gmp_socket_path = <%= $gmp_socket_path %>
+scan_name = <%= $scan_name %>
+docker_cmd = <%= $docker_cmd %>
+gmp_timeout = <%= $gmp_timeout %>
+host_map_file = <%= $host_map_file %>

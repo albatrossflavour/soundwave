@@ -1,0 +1,12 @@
+pkg/
+spec/fixtures/modules/
+spec/fixtures/manifests/
+.vendor/
+vendor/
+.bundle/
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+/Gemfile.lock
+/bin/
