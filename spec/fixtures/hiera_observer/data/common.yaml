@@ -1,0 +1,6 @@
+---
+lookup_options:
+  openvas::scan_observer_password:
+    convert_to: "Sensitive"
+openvas::scan_observer_user: 'reader'
+openvas::scan_observer_password: 'observer-pw'

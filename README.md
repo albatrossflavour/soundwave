@@ -42,6 +42,7 @@ Soundwave also keeps findings with no CVSS score out of VR, and they stay in the
 ## Requirements
 
 - Puppet Enterprise with Vulnerability Remediation enabled, and a PE RBAC token with permission to push to it
+- TCP 8146 open from the Soundwave node to the PE primary, where the VR service listens. Without it registration times out, and the log says it couldn't reach the host and port
 - Puppet 8 and an agent certificate. Secrets are encrypted to it with `node_encrypt`, and the push authenticates with it
 - Greenbone from `albatrossflavour-openvas` on the same node, for the openvas cassette
 - Vuls from `albatrossflavour-vuls` on the same node, for the vuls cassette
@@ -49,28 +50,23 @@ Soundwave also keeps findings with no CVSS score out of VR, and they stay in the
 
 ## Usage
 
-Soundwave reads Greenbone as a GMP user, and doesn't create one. Use a read-only user rather than `admin`, so a leaked Soundwave secret can't change Greenbone. The openvas module creates one with `openvas::scan_observer_user` and `openvas::scan_observer_password`, which can see the managed tasks and their reports and nothing else. Give Soundwave the same name and password.
-
-Classify the Greenbone node and give it the secrets, encrypted with eyaml:
+Soundwave reads Greenbone as a GMP user, and doesn't create one. The openvas module creates a read-only one with `openvas::scan_observer_user` and `openvas::scan_observer_password`, which can see the managed tasks and their reports and nothing else, and Soundwave logs in with those same two settings. On the Greenbone node, with `include openvas` already there:
 
 ```yaml
 openvas::scan_observer_user: 'reader'
 openvas::scan_observer_password: >
   ENC[PKCS7,...]
-
 soundwave::pe_token: >
   ENC[PKCS7,...]
-soundwave::gmp_username: 'reader'         # the same user
-soundwave::gmp_password: >                # and the same password
-  ENC[PKCS7,...]
-soundwave::vuls_cassette: true
 ```
 
 ```puppet
 include soundwave
 ```
 
-Run the agent on the Greenbone node before the first Soundwave run, so the user exists in gvmd. If the openvas cassette logs `Response Error 400. Authentication failed`, gvmd has refused this user and password, and the PE token isn't involved.
+Run the agent once before the first Soundwave run, so the user exists in gvmd. The reconciler won't create it while a scan is running. If the openvas cassette logs `Response Error 400. Authentication failed`, gvmd has refused the user and password, and the PE token isn't involved.
+
+Soundwave also picks up the openvas module's `scan-hosts.json`, so findings reach PE under each node's certname. Add `soundwave::vuls_cassette: true` when Vuls runs on the same node.
 
 Without Greenbone, set `soundwave::openvas_cassette: false` and leave out the GMP settings. Soundwave then goes on whichever node the cassettes you use need.
 
@@ -81,13 +77,13 @@ The first run registers Soundwave with PE. Accept the pending transformer on the
 `REFERENCE.md` has the full list. The ones you're most likely to set:
 
 - `pe_token` (required): the PE token for VR
-- `gmp_password` (required with the openvas cassette) and `gmp_username` (default `admin`): the GMP account that reads reports
+- `gmp_username` and `gmp_password` (default: `openvas::scan_observer_user` and `openvas::scan_observer_password`): the GMP account that reads reports. With no observer the user is `admin`, and the password has to be set
 - `pe_host` (default: the Puppet server that compiled the catalogue): the PE primary to push to. Set it when that server is a compiler, or when there is no server at all
 - `openvas_cassette` (default `true`) and `vuls_cassette` (default `false`): which cassettes run before each push
 - `min_confidence` (default `70`): the confidence below which findings stay out of VR
 - `sync_schedule` (default `daily`): the systemd `OnCalendar` expression for the timer
 - `scan_name` (default unset): read only the named task's report, rather than every task's latest
-- `host_map_file` (default unset): a JSON object of scanned address to certname, such as `{"192.0.2.10": "web01.example.com"}`. PE matches findings to nodes by certname, and gvmd only knows the address and its reverse DNS name, so where those differ PE drops the host's findings without saying so. The openvas module writes this file from PuppetDB, as `scan-hosts.json` in its install directory
+- `host_map_file` (default: the openvas module's `scan-hosts.json` with the openvas cassette on, otherwise unset): a JSON object of scanned address to certname, such as `{"192.0.2.10": "web01.example.com"}`. PE matches findings to nodes by certname, and gvmd only knows the address and its reverse DNS name, so where those differ PE drops the host's findings without saying so. The openvas module writes this file from PuppetDB, as `scan-hosts.json` in its install directory
 - `metrics_file` (default unset): a node_exporter textfile written on each run. It carries each cassette's age, scan end time, and finding and host counts, and the run's own success, push status code, and counts. Alert on the timestamps rather than on the unit succeeding: a push PE refuses as a repeat can still leave the unit green
 - `vuls_results_dir`, `vuls_complete_file`, `vuls_config`, `vuls_windows_config`, and `vuls_database`: where the vuls cassette finds the vuls module's results. The defaults are that module's own paths
 - `cassette_dir` (default `/var/lib/soundwave/cassettes`): where cassettes write their files. Set `cassette_group` (default `root`) when a cassette runs as another user, outside Soundwave's own service, and needs to write there

@@ -51,7 +51,7 @@ describe 'soundwave' do
         end
 
         it 'leaves the optional settings empty, which the Python reads as unset' do
-          ['metrics_file', 'correlation_exceptions', 'findings_api_host', 'post_body_filepath', 'scan_name', 'host_map_file'].each do |key|
+          ['metrics_file', 'correlation_exceptions', 'findings_api_host', 'post_body_filepath', 'scan_name'].each do |key|
             expect(config_ini).to match(%r{^#{key} = $})
           end
         end
@@ -68,6 +68,14 @@ describe 'soundwave' do
                                           "findings_api_host = pe.example.com\n", "post_body_filepath = /tmp/body.json\n",
                                           "scan_name = Weekly\n", "host_map_file = /opt/hosts.json\n")
           end
+        end
+
+        it "maps addresses to certnames with the openvas module's own host map" do
+          expect(config_ini).to include("host_map_file = /opt/greenbone-community-container/scan-hosts.json\n")
+        end
+
+        it 'reads Greenbone as admin when no observer is configured' do
+          is_expected.to contain_file("#{dir}/python/gvm-tools.conf").with_content(%r{^username = admin$})
         end
 
         it 'escapes % in the GMP password, as gvm-tools interpolates it' do
@@ -95,12 +103,26 @@ describe 'soundwave' do
         it 'removes any GMP credentials an earlier openvas cassette left behind' do
           is_expected.to contain_file("#{dir}/python/gvm-tools.conf").with_ensure('absent')
         end
+
+        it 'has no host map, since only the openvas cassette writes addresses' do
+          expect(config_ini).to match(%r{^host_map_file = $})
+        end
       end
 
       context 'with the openvas cassette and no GMP password' do
         let(:params) { required.reject { |k, _| k == 'gmp_password' } }
 
         it { is_expected.to compile.and_raise_error(%r{set soundwave::gmp_password}) }
+      end
+
+      context "with the openvas module's observer user in Hiera, and no GMP settings for Soundwave" do
+        let(:hiera_config) { 'spec/fixtures/hiera_observer/hiera.yaml' }
+        let(:params) { required.reject { |k, _| k == 'gmp_password' } }
+
+        it 'logs in as that user, with its password' do
+          is_expected.to contain_file("#{dir}/python/gvm-tools.conf")
+            .with_content(%r{^username = reader$}).with_content(%r{^password = observer-pw$})
+        end
       end
 
       context 'outside a virtualenv' do

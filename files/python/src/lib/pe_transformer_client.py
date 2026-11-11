@@ -55,7 +55,7 @@ def register_host(pe_params):
         ca_cert=pe_params.get("ca_cert"),
     )
     if response is None:
-        return {"status": 500, "data": "Error occured"}
+        return {"status": None, "data": f"no response from {pe_params['host']}:{pe_params['port']}, see the error above"}
 
     return response
 

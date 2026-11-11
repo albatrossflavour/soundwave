@@ -101,18 +101,20 @@ Default value: `undef`
 
 Data type: `Optional[Sensitive[String[1]]]`
 
-Password for the GMP user used to read reports. Required when
-openvas_cassette is on, and unused otherwise.
+Password for the GMP user used to read reports. Defaults to
+`openvas::scan_observer_password`, so the read-only user the openvas module
+creates is set once. Required when openvas_cassette is on, unused otherwise.
 
 Default value: `undef`
 
 ##### <a name="-soundwave--gmp_username"></a>`gmp_username`
 
-Data type: `String[1]`
+Data type: `Optional[String[1]]`
 
-GMP user used to read reports. A dedicated read-only user is recommended over admin.
+GMP user used to read reports. Defaults to `openvas::scan_observer_user`,
+and to admin when that isn't set.
 
-Default value: `'admin'`
+Default value: `undef`
 
 ##### <a name="-soundwave--compose_file"></a>`compose_file`
 
@@ -347,7 +349,9 @@ Data type: `Optional[Stdlib::Absolutepath]`
 
 JSON object mapping each scanned address to its Puppet certname. Hosts found
 in it are sent to PE under their certname; anything else keeps the name gvmd
-had and is recorded in the cassette's unmapped list.
+had and is recorded in the cassette's unmapped list. With the openvas
+cassette on it defaults to the openvas module's `scan-hosts.json`, beside
+`compose_file`.
 
 Default value: `undef`
 

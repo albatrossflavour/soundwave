@@ -67,6 +67,9 @@ def call_rest_api(
     except http.client.HTTPException as http_err:
         logger.error(f"HTTP error: {http_err}")
         return None
+    except OSError as e:
+        logger.error(f"Could not reach {host}:{port}: {e}. Check TCP {port} is open from this node to PE.")
+        return None
     except Exception as e:
         logger.error(f"Unexpected error: {e}")
         return None

@@ -25,10 +25,12 @@
 #   catalogue, so it only needs setting when that isn't the PE primary, or when
 #   there is no server at all (`puppet apply`).
 # @param gmp_password
-#   Password for the GMP user used to read reports. Required when
-#   openvas_cassette is on, and unused otherwise.
+#   Password for the GMP user used to read reports. Defaults to
+#   `openvas::scan_observer_password`, so the read-only user the openvas module
+#   creates is set once. Required when openvas_cassette is on, unused otherwise.
 # @param gmp_username
-#   GMP user used to read reports. A dedicated read-only user is recommended over admin.
+#   GMP user used to read reports. Defaults to `openvas::scan_observer_user`,
+#   and to admin when that isn't set.
 # @param compose_file
 #   Absolute path to the Greenbone docker compose file on this host.
 # @param gmp_service
@@ -109,7 +111,9 @@
 # @param host_map_file
 #   JSON object mapping each scanned address to its Puppet certname. Hosts found
 #   in it are sent to PE under their certname; anything else keeps the name gvmd
-#   had and is recorded in the cassette's unmapped list.
+#   had and is recorded in the cassette's unmapped list. With the openvas
+#   cassette on it defaults to the openvas module's `scan-hosts.json`, beside
+#   `compose_file`.
 # @param metrics_file
 #   If set, each run writes a node_exporter textfile here: when it ran, whether
 #   it worked, PE's HTTP status, and per cassette its age, findings, host
@@ -127,7 +131,7 @@
 #
 class soundwave (
   Sensitive[String[1]] $pe_token,
-  String[1] $gmp_username             = 'admin',
+  Optional[String[1]] $gmp_username   = undef,
   String[1] $compose_file             = '/opt/greenbone-community-container/compose.yaml',
   String[1] $gmp_service              = 'gvm-tools',
   String[1] $gmp_socket_path          = '/run/gvmd/gvmd.sock',
@@ -165,8 +169,20 @@ class soundwave (
   if $_pe_host =~ Undef or $_pe_host == '' {
     fail('soundwave: no Puppet server compiled this catalogue, so set soundwave::pe_host to the PE primary')
   }
-  if $openvas_cassette and $gmp_password =~ Undef {
+  # The openvas module creates this read-only user, so it is set once, there.
+  $_gmp_username = pick($gmp_username, lookup('openvas::scan_observer_user', Optional[String[1]], 'first', undef), 'admin')
+  $_gmp_password = $gmp_password.lest || {
+    lookup('openvas::scan_observer_password', Optional[Sensitive[String[1]]], 'first', undef)
+  }
+  if $openvas_cassette and $_gmp_password =~ Undef {
     fail('soundwave: the openvas cassette reads Greenbone over GMP, so set soundwave::gmp_password, or turn openvas_cassette off')
+  }
+  # The openvas module writes this beside its compose file. Only the openvas
+  # cassette has addresses to map.
+  $_host_map_file = if $host_map_file =~ NotUndef or !$openvas_cassette {
+    $host_map_file
+  } else {
+    "${dirname($compose_file)}/scan-hosts.json"
   }
   $install_path = '/opt/puppetlabs/soundwave'
   $gmp_config_file = "${install_path}/python/gvm-tools.conf"
@@ -313,7 +329,7 @@ class soundwave (
         'scan_name'               => $scan_name,
         'docker_cmd'              => $docker_cmd,
         'gmp_timeout'             => $gmp_timeout,
-        'host_map_file'           => $host_map_file,
+        'host_map_file'           => $_host_map_file,
         'metrics_file'            => $metrics_file,
         'cassette_dir'            => $cassette_dir,
         'min_confidence'          => $min_confidence,
@@ -339,8 +355,8 @@ class soundwave (
       mode    => '0600',
       content => epp('soundwave/gvm-tools.conf.epp',
         {
-          'gmp_username' => $gmp_username,
-          'gmp_password' => $gmp_password,
+          'gmp_username' => $_gmp_username,
+          'gmp_password' => $_gmp_password,
       }).node_encrypt::secret,
       require => File["${install_path}/python"],
     }
