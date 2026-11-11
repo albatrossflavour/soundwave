@@ -49,13 +49,19 @@ Soundwave also keeps findings with no CVSS score out of VR, and they stay in the
 
 ## Usage
 
-Classify the Greenbone node and give it the two secrets, encrypted with eyaml:
+Soundwave reads Greenbone as a GMP user, and doesn't create one. Use a read-only user rather than `admin`, so a leaked Soundwave secret can't change Greenbone. The openvas module creates one with `openvas::scan_observer_user` and `openvas::scan_observer_password`, which can see the managed tasks and their reports and nothing else. Give Soundwave the same name and password.
+
+Classify the Greenbone node and give it the secrets, encrypted with eyaml:
 
 ```yaml
+openvas::scan_observer_user: 'reader'
+openvas::scan_observer_password: >
+  ENC[PKCS7,...]
+
 soundwave::pe_token: >
   ENC[PKCS7,...]
-soundwave::gmp_username: 'reader'
-soundwave::gmp_password: >
+soundwave::gmp_username: 'reader'         # the same user
+soundwave::gmp_password: >                # and the same password
   ENC[PKCS7,...]
 soundwave::vuls_cassette: true
 ```
@@ -64,9 +70,9 @@ soundwave::vuls_cassette: true
 include soundwave
 ```
 
-Without Greenbone, set `soundwave::openvas_cassette: false` and leave out the GMP settings. Soundwave then goes on whichever node the cassettes you use need.
+Run the agent on the Greenbone node before the first Soundwave run, so the user exists in gvmd. If the openvas cassette logs `Response Error 400. Authentication failed`, gvmd has refused this user and password, and the PE token isn't involved.
 
-Use a read-only GMP account rather than the default `admin`, so a leaked Soundwave secret can't change Greenbone. `openvas::scan_observer_user` and `openvas::scan_observer_password` create one that can see the managed tasks and their reports and nothing else.
+Without Greenbone, set `soundwave::openvas_cassette: false` and leave out the GMP settings. Soundwave then goes on whichever node the cassettes you use need.
 
 The first run registers Soundwave with PE. Accept the pending transformer on the vulnerabilities page in the PE console, and each run after that pushes findings.
 
