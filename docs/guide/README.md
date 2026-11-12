@@ -2,7 +2,7 @@
 
 This guide takes a scanner that's already working and gets its findings into Puppet Enterprise Vulnerability Remediation.
 
-The steps link to the [module README](../../README.md) for each setting's detail.
+The steps link to [the module's reference pages](../../README.md#reference) for each setting's detail.
 
 ## Before this guide
 

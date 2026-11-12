@@ -28,7 +28,7 @@ Results added successfully
 
 and the vulnerabilities page in the PE console shows findings against your nodes.
 
-From then on the timer runs nightly. A night with no new scan logs `PE already holds scan date ...; not pushing`, which is normal. To watch it, set `metrics_file` and alert on the cassette timestamps. See [Parameters](../../README.md#parameters).
+From then on the timer runs nightly. A night with no new scan logs `PE already holds scan date ...; not pushing`, which is normal. To watch it, set [`metrics_file`](../../REFERENCE.md#-soundwave--metrics_file) and alert on the cassette timestamps.
 
 ## If it fails
 
@@ -36,9 +36,9 @@ From then on the timer runs nightly. A night with no new scan logs `PE already h
 |---|---|---|
 | `Registration successful. Transformer is Pending Activation.` again | It hasn't been accepted | Accept it in the console |
 | `Error adding results` | PE refused the push | The message carries PE's reason, such as a token that has expired or can't push to Vulnerability Remediation |
-| A scanned node has no findings in PE | PE matches findings to nodes by certname, and the scanner reported another name | With Greenbone, check the node's address is in `/opt/greenbone-community-container/scan-hosts.json`. See `host_map_file` in [Parameters](../../README.md#parameters) |
-| Findings you expected are missing | Below `min_confidence`, or with no CVSS score | See [Confidence](../../README.md#confidence). The cassette files keep them |
-| PE was reset and nothing is pushed | Soundwave remembers the last scan date PE accepted | See [Troubleshooting](../../README.md#troubleshooting) |
+| A scanned node has no findings in PE | PE matches findings to nodes by certname, and the scanner reported another name | With Greenbone, check the node's address is in `/opt/greenbone-community-container/scan-hosts.json`. See [`host_map_file`](../../REFERENCE.md#-soundwave--host_map_file) |
+| Findings you expected are missing | Below `min_confidence`, or with no CVSS score | See [Confidence](../pushing.md#confidence). The cassette files keep them |
+| PE was reset and nothing is pushed | Soundwave remembers the last scan date PE accepted | See [Troubleshooting](../pushing.md#troubleshooting) |
 
 ## Next
 

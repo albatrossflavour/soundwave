@@ -3,20 +3,20 @@
 require 'spec_helper'
 
 # markdownlint only checks anchors inside one file, so a renamed heading would
-# break a guide link to it without failing anything else.
-describe 'links in the README and the install guide' do
+# break a link to it from another page without failing anything else.
+describe 'links in the README and the docs' do
   root = File.expand_path('../..', __dir__)
   slug = ->(heading) { heading.downcase.gsub(%r{[^\p{Word}\- ]}, '').tr(' ', '-') }
-  pages = [File.join(root, 'README.md')] + Dir[File.join(root, 'docs/guide/*.md')]
+  anchors = ->(file) { File.read(file).then { |t| t.scan(%r{^#+ (.+)$}).flatten.map(&slug) + t.scan(%r{<a name="([^"]+)">}).flatten } }
+  pages = [File.join(root, 'README.md')] + Dir[File.join(root, 'docs/**/*.md')]
 
   pages.each do |page|
-    links = File.read(page).scan(%r{\]\(([^)\s]+)\)}).flatten.reject { |link| link.match?(%r{\A[a-z]+:}) }
-    links.each do |link|
-      it "#{page.delete_prefix("#{root}/")} links to #{link}" do
-        path, anchor = link.split('#', 2)
-        target = path.empty? ? page : File.expand_path(path, File.dirname(page))
-        expect(File).to exist(target)
-        expect(File.read(target).scan(%r{^#+ (.+)$}).flatten.map(&slug)).to include(anchor) if anchor
+    File.read(page).scan(%r{\]\(([^)\s]+)\)}).flatten.grep_v(%r{\A[a-z]+:}).each do |link|
+      path, anchor = link.split('#', 2)
+      target = path.empty? ? page : File.expand_path(path, File.dirname(page))
+
+      it "#{page.delete_prefix("#{root}/")} links to #{link}, which exists" do
+        expect(File.exist?(target) && (anchor.nil? || anchors.call(target).include?(anchor))).to be(true)
       end
     end
   end

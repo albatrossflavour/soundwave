@@ -28,7 +28,7 @@ soundwave::openvas_cassette: false    # without Greenbone
 
 If the scanner's catalogue is compiled by a compiler rather than the primary, also set `soundwave::pe_host` to the primary, as step 1 says.
 
-The openvas cassette needs nothing else here. It logs in with `openvas::scan_observer_user` and `openvas::scan_observer_password`, and reads the module's host map, by itself. See [Usage](../../README.md#usage).
+The openvas cassette needs nothing else here. It logs in with `openvas::scan_observer_user` and `openvas::scan_observer_password`, and reads the module's host map, by itself.
 
 Add the class to the scanner's profile, run the agent, then start a run:
 
