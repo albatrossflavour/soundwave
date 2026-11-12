@@ -6,7 +6,7 @@ and PE matches findings to nodes by certname. Where reverse DNS and certname
 differ, PE drops the host's findings without saying so; on the lab it dropped
 the gateway that way. The node's own Puppet data knows which certname owns
 which address, so the Greenbone profile writes that as a JSON object,
-{"192.168.7.10": "puppet.example.com", ...}, and this renames each host before
+{"192.0.2.10": "puppet.example.com", ...}, and this renames each host before
 the push. A host the map doesn't know keeps its reverse DNS name and is logged,
 so a drop PE won't report is at least visible here.
 """

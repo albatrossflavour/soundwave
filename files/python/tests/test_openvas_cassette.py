@@ -89,7 +89,7 @@ def _one(tmp_path, result_kwargs=None, *, host_kwargs=None, mapping=None, errors
     """A report with one host block and one result on it."""
     host_kwargs = {"start": "2026-09-15T05:00:00Z", "end": "2026-09-15T05:09:49Z", **(host_kwargs or {})}
     result_kwargs = {"severity": 7.5, **(result_kwargs or {})}
-    ip = host_kwargs.pop("ip", "192.168.7.13")
+    ip = host_kwargs.pop("ip", "192.0.2.13")
     path = _report_file(
         tmp_path,
         hosts=_xml_host(ip, **host_kwargs),
@@ -99,7 +99,7 @@ def _one(tmp_path, result_kwargs=None, *, host_kwargs=None, mapping=None, errors
     return parse_report(path, mapping)
 
 
-MAPPED = {"192.168.7.13": "dashboard.lab.albatrossflavour.com"}
+MAPPED = {"192.0.2.13": "dashboard.example.com"}
 
 
 # The fields the direct-to-VR parser threw away, which are the whole reason the
@@ -114,8 +114,8 @@ def test_check_id_is_the_nvt_oid(tmp_path):
 def test_result_without_an_oid_is_skipped(tmp_path):
     path = _report_file(
         tmp_path,
-        hosts=_xml_host("192.168.7.13"),
-        results=_xml_result("1", "192.168.7.13", "", 7.5),
+        hosts=_xml_host("192.0.2.13"),
+        results=_xml_result("1", "192.0.2.13", "", 7.5),
     )
     document = parse_report(path, MAPPED)
     assert document.checks == {}
@@ -185,26 +185,26 @@ def test_absent_port_is_null(tmp_path):
 
 def test_host_block_per_address_with_ssh_auth(tmp_path):
     document = _one(tmp_path, host_kwargs={"auth": "Auth-SSH-Success"}, mapping=MAPPED)
-    host = document.hosts["dashboard.lab.albatrossflavour.com"]
+    host = document.hosts["dashboard.example.com"]
     assert host["authenticated"] is True
-    assert host["ipaddress"] == "192.168.7.13"
+    assert host["ipaddress"] == "192.0.2.13"
     assert host["collection"] == "gmp"
     assert host["status"] == "scanned"
 
 
 def test_smb_auth_also_counts(tmp_path):
     document = _one(tmp_path, host_kwargs={"auth": "Auth-SMB-Success"}, mapping=MAPPED)
-    assert document.hosts["dashboard.lab.albatrossflavour.com"]["authenticated"] is True
+    assert document.hosts["dashboard.example.com"]["authenticated"] is True
 
 
 def test_unauthenticated_scan_still_completes(tmp_path):
     document = _one(tmp_path, mapping=MAPPED)
-    assert document.hosts["dashboard.lab.albatrossflavour.com"]["authenticated"] is False
+    assert document.hosts["dashboard.example.com"]["authenticated"] is False
 
 
 def test_scan_window_comes_from_the_host_block(tmp_path):
     document = _one(tmp_path, mapping=MAPPED)
-    host = document.hosts["dashboard.lab.albatrossflavour.com"]
+    host = document.hosts["dashboard.example.com"]
     assert host["scan_start"] == "2026-09-15T05:00:00Z"
     assert host["scan_end"] == "2026-09-15T05:09:49Z"
     assert document.findings[0]["detected_at"] == "2026-09-15T05:09:49Z"
@@ -213,10 +213,10 @@ def test_scan_window_comes_from_the_host_block(tmp_path):
 def test_host_with_no_findings_still_gets_a_block(tmp_path):
     path = _report_file(
         tmp_path,
-        hosts=_xml_host("192.168.7.13", end=SCAN_END) + _xml_host("192.168.7.99", end=SCAN_END),
-        results=_xml_result("1", "192.168.7.13", OID, 7.5),
+        hosts=_xml_host("192.0.2.13", end=SCAN_END) + _xml_host("192.0.2.99", end=SCAN_END),
+        results=_xml_result("1", "192.0.2.13", OID, 7.5),
     )
-    document = parse_report(path, {"192.168.7.13": "dashboard.lab", "192.168.7.99": "clean.lab"})
+    document = parse_report(path, {"192.0.2.13": "dashboard.lab", "192.0.2.99": "clean.lab"})
     assert sorted(document.hosts) == ["clean.lab", "dashboard.lab"]
     assert [f["certname"] for f in document.findings] == ["dashboard.lab"]
     assert document.hosts["clean.lab"]["status"] == "scanned"
@@ -226,9 +226,9 @@ def test_host_with_a_scan_error_is_partial(tmp_path):
     document = _one(
         tmp_path,
         mapping=MAPPED,
-        errors=_xml_errors(("192.168.7.13", "Host process failure")),
+        errors=_xml_errors(("192.0.2.13", "Host process failure")),
     )
-    host = document.hosts["dashboard.lab.albatrossflavour.com"]
+    host = document.hosts["dashboard.example.com"]
     assert host["status"] == "partial"
     assert host["errors"] == ["Host process failure"]
 
@@ -237,26 +237,26 @@ def test_unmapped_address_keeps_its_reverse_dns_name_and_is_recorded(tmp_path):
     document = _one(tmp_path, host_kwargs={"hostname": "old-dns-name.example.com"}, mapping={})
     assert "old-dns-name.example.com" in document.hosts
     assert document.unmapped == [
-        {"identifier": "192.168.7.13", "collection": "gmp", "sent_as": "old-dns-name.example.com"}
+        {"identifier": "192.0.2.13", "collection": "gmp", "sent_as": "old-dns-name.example.com"}
     ]
 
 
 def test_unmapped_address_without_reverse_dns_falls_back_to_the_address(tmp_path):
     document = _one(tmp_path, mapping={})
-    assert "192.168.7.13" in document.hosts
-    assert document.unmapped[0]["sent_as"] == "192.168.7.13"
+    assert "192.0.2.13" in document.hosts
+    assert document.unmapped[0]["sent_as"] == "192.0.2.13"
 
 
 def test_mapped_address_is_not_unmapped(tmp_path):
     document = _one(tmp_path, host_kwargs={"hostname": "old-dns-name.example.com"}, mapping=MAPPED)
-    assert list(document.hosts) == ["dashboard.lab.albatrossflavour.com"]
+    assert list(document.hosts) == ["dashboard.example.com"]
     assert document.unmapped == []
 
 
 def test_result_for_an_address_with_no_host_block_still_lands(tmp_path):
     # gvmd has produced results for a host it left out of the host list; the
     # finding is real and must not be dropped for want of a block to hang it on.
-    path = _report_file(tmp_path, results=_xml_result("1", "192.168.7.13", OID, 7.5, hostname="dashboard.lab"))
+    path = _report_file(tmp_path, results=_xml_result("1", "192.0.2.13", OID, 7.5, hostname="dashboard.lab"))
     document = parse_report(path, None, scan_end_fallback=SCAN_END)
     assert document.hosts["dashboard.lab"]["scan_end"] == SCAN_END
     assert document.findings[0]["certname"] == "dashboard.lab"
@@ -277,7 +277,7 @@ def test_log_rows_are_skipped(tmp_path):
     document = _one(tmp_path, {"severity": 0.0}, mapping=MAPPED)
     assert document.findings == []
     # The host block survives: the scan reached it, it simply found nothing.
-    assert "dashboard.lab.albatrossflavour.com" in document.hosts
+    assert "dashboard.example.com" in document.hosts
 
 
 def test_cvss_base_wins_over_the_result_severity(tmp_path):
@@ -312,11 +312,11 @@ def test_cvss_version_from_the_vector(tmp_path):
 
 def test_malformed_result_does_not_lose_the_report(tmp_path):
     # A severity that will not parse used to take the whole report with it.
-    broken = f'<result id="1"><host>192.168.7.13</host><severity>NaN-ish</severity><nvt oid="{OID}"/></result>'
+    broken = f'<result id="1"><host>192.0.2.13</host><severity>NaN-ish</severity><nvt oid="{OID}"/></result>'
     path = _report_file(
         tmp_path,
-        hosts=_xml_host("192.168.7.13", end=SCAN_END),
-        results=broken + _xml_result("2", "192.168.7.13", "1.2.3", 7.5),
+        hosts=_xml_host("192.0.2.13", end=SCAN_END),
+        results=broken + _xml_result("2", "192.0.2.13", "1.2.3", 7.5),
     )
     document = parse_report(path, MAPPED)
     assert list(document.checks) == ["greenbone:1.2.3"]
@@ -591,13 +591,13 @@ def test_os_identity_warns_once_about_an_unmapped_vendor(caplog):
 
 def test_host_block_carries_the_os(tmp_path):
     document = _one(tmp_path, host_kwargs={"os_cpe": "cpe:/o:rocky:rocky:9.8"}, mapping=MAPPED)
-    host = document.hosts["dashboard.lab.albatrossflavour.com"]
+    host = document.hosts["dashboard.example.com"]
     assert (host["os_family"], host["os_release"]) == ("rocky", "9.8")
 
 
 def test_host_block_os_is_empty_when_greenbone_did_not_fingerprint_it(tmp_path):
     document = _one(tmp_path, mapping=MAPPED)
-    host = document.hosts["dashboard.lab.albatrossflavour.com"]
+    host = document.hosts["dashboard.example.com"]
     assert (host["os_family"], host["os_release"]) == ("", "")
 
 
