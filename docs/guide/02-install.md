@@ -8,8 +8,8 @@ This installs Soundwave and its nightly timer, and the first run registers it wi
 
 - Step 1 done, with the token encrypted
 - The module and its dependencies (`puppet-python`, `puppet-systemd`, `puppetlabs-stdlib`, and `puppetlabs-node_encrypt`) in your Puppetfile, and deployed to the scanner's environment
-- With Greenbone, the openvas guide's step 5 done, so the observer user logs in
-- With Vuls, a complete run recorded, as in the vuls guide's step 5
+- With Greenbone, [the openvas guide's step 5](https://github.com/albatrossflavour/openvas/blob/main/docs/guide/05-soundwave.md) done, so the observer user logs in
+- With Vuls, a complete run recorded, as in [the vuls guide's step 5](https://github.com/albatrossflavour/vuls/blob/main/docs/guide/05-soundwave.md)
 
 ## Do it
 
@@ -63,10 +63,10 @@ Registration successful. Transformer is Pending Activation.
 
 | You see | Because | Do |
 |---|---|---|
-| `Response Error 400. Authentication failed` | gvmd refused the observer login. The PE token isn't involved | The openvas guide's step 5 |
-| The catalogue fails with `set soundwave::gmp_password` | The openvas cassette is on, and no observer is set | Set the observer in the openvas guide's step 5, or turn the openvas cassette off |
+| `Response Error 400. Authentication failed` | gvmd refused the observer login. The PE token isn't involved | [The openvas guide's step 5](https://github.com/albatrossflavour/openvas/blob/main/docs/guide/05-soundwave.md) |
+| The catalogue fails with `set soundwave::gmp_password` | The openvas cassette is on, and no observer is set | Set the observer in [the openvas guide's step 5](https://github.com/albatrossflavour/openvas/blob/main/docs/guide/05-soundwave.md), or turn the openvas cassette off |
 | `Could not reach <primary>:8146` | The port is blocked, or the name resolves elsewhere | Step 1 |
-| `vuls cassette: no complete Vuls run recorded` | Vuls hasn't finished a run | The vuls guide's step 4 |
+| `vuls cassette: no complete Vuls run recorded` | Vuls hasn't finished a run | [The vuls guide's step 4](https://github.com/albatrossflavour/vuls/blob/main/docs/guide/04-scan.md) |
 | `Transformer with different ID is in Active or Pending State.` | Another integration is registered with PE | Remove it in PE. PE accepts one |
 
 A cassette that fails leaves its previous file and the run carries on, so read the whole log.

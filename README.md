@@ -8,8 +8,8 @@ Each scanner plugs in as a cassette, and the module ships with cassettes for [Gr
 
 | Cassette | Reads | Mostly finds | Turned on by |
 |---|---|---|---|
-| `openvas` | Greenbone, from the openvas module | Network, TLS, and configuration problems, and Ubuntu and Debian package advisories | `openvas_cassette`, on by default |
-| `vuls` | Vuls, from the vuls module | EL package errata and Windows KBs | `vuls_cassette`, off by default |
+| `openvas` | Greenbone, from [the openvas module](https://github.com/albatrossflavour/openvas) | Network, TLS, and configuration problems, and Ubuntu and Debian package advisories | `openvas_cassette`, on by default |
+| `vuls` | Vuls, from [the vuls module](https://github.com/albatrossflavour/vuls) | EL package errata and Windows KBs | `vuls_cassette`, off by default |
 
 Each cassette reads its scanner on the node it runs on, so Soundwave goes on the scanner node, and with both scanners they share it. Where two scanners report what looks like the same weakness, Soundwave counts it and by default still sends both. See [Correlating](docs/findings-file.md#correlating).
 
