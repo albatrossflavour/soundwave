@@ -4,6 +4,7 @@
 
 First release. Merges vulnerability findings from any number of scanners, each read by its own cassette, and pushes one set into Puppet Enterprise's Vulnerability Remediation service. Ships with cassettes for Greenbone and Vuls.
 
+- An install guide in `docs/guide/`, from a working scanner to findings in PE, with a check for each step that says what a good answer looks like
 - Two cassettes: `openvas` reads Greenbone over GMP and is on by default, and `vuls` reads the last complete Vuls run and is off by default
 - A cassette that fails leaves its previous file in place, so the push still goes
 - Every push carries the full merged set, and a host scanned clean is pushed with an empty list, so patched nodes stop showing old findings

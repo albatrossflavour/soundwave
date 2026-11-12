@@ -4,6 +4,8 @@ Soundwave merges vulnerability findings from any number of scanners and pushes o
 
 Each scanner plugs in as a cassette, and adding a scanner means adding a cassette, with no change to Soundwave itself. The module ships with two: `openvas`, for Greenbone installed by [`albatrossflavour-openvas`](https://github.com/albatrossflavour/openvas), and `vuls`, for Vuls installed by [`albatrossflavour-vuls`](https://github.com/albatrossflavour/vuls). With the openvas cassette on, Soundwave goes on the Greenbone host, because that cassette reaches gvmd through the stack's own container.
 
+To install it, follow [the install guide](docs/guide/README.md), which starts from a working scanner and ends with findings in PE. This README is the reference the guide links to.
+
 ## Cassettes
 
 Soundwave never parses a scanner itself, and knows nothing about any of them. A cassette reads one scanner and writes the scanner-neutral findings file described in [docs/findings-file.md](docs/findings-file.md), and Soundwave merges every file in the cassette directory and pushes the result. Supporting another scanner means writing another cassette.
