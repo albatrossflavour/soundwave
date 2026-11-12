@@ -2,7 +2,7 @@
 
 [Vulnerability Remediation](https://help.puppet.com/pe/current/topics/advanced-patching-vulnerability-remediation.htm) (VR) in Puppet Enterprise Advanced takes findings from one vulnerability integration. Soundwave is that integration, so every scanner's findings are gathered and merged in one place and pushed into VR together, where PE matches them to your nodes and shows which ones Puppet can patch.
 
-Each scanner plugs in as a cassette, and the module ships with cassettes for [Greenbone](https://github.com/albatrossflavour/openvas) and [Vuls](https://github.com/albatrossflavour/vuls). A cassette reads one scanner and writes a scanner-neutral [findings file](docs/findings-file.md), and Soundwave merges every cassette's file and pushes one set. Adding a scanner means adding a cassette, with no change to Soundwave or to PE.
+Each scanner plugs in as a cassette, and the module ships with cassettes for [Greenbone](https://github.com/albatrossflavour/openvas) and [Vuls](https://github.com/albatrossflavour/vuls). A cassette reads one scanner and writes a scanner-neutral [findings file](https://github.com/albatrossflavour/soundwave/blob/main/docs/findings-file.md), and Soundwave merges every cassette's file and pushes one set. Adding a scanner means adding a cassette, with no change to Soundwave or to PE.
 
 ## Cassettes
 
@@ -11,7 +11,7 @@ Each scanner plugs in as a cassette, and the module ships with cassettes for [Gr
 | `openvas` | Greenbone, from [the openvas module](https://github.com/albatrossflavour/openvas) | Network, TLS, and configuration problems, and Ubuntu and Debian package advisories | `openvas_cassette`, on by default |
 | `vuls` | Vuls, from [the vuls module](https://github.com/albatrossflavour/vuls) | EL package errata and Windows KBs | `vuls_cassette`, off by default |
 
-Each cassette reads its scanner on the node it runs on, so Soundwave goes on the scanner node, and with both scanners they share it. Where two scanners report what looks like the same weakness, Soundwave counts it and by default still sends both. See [Correlating](docs/findings-file.md#correlating).
+Each cassette reads its scanner on the node it runs on, so Soundwave goes on the scanner node, and with both scanners they share it. Where two scanners report what looks like the same weakness, Soundwave counts it and by default still sends both. See [Correlating](https://github.com/albatrossflavour/soundwave/blob/main/docs/findings-file.md#correlating).
 
 ## How it works
 
@@ -26,14 +26,14 @@ A nightly systemd timer runs each cassette that's turned on, then registers with
 
 ## Getting started
 
-Get a scanner working first with [the openvas guide](https://github.com/albatrossflavour/openvas/blob/main/docs/guide/README.md) or [the vuls guide](https://github.com/albatrossflavour/vuls/blob/main/docs/guide/README.md). Each ends by handing over to [the Soundwave install guide](docs/guide/README.md), which goes from a working scanner to findings in VR, with a check at the end of each step.
+Get a scanner working first with [the openvas guide](https://github.com/albatrossflavour/openvas/blob/main/docs/guide/README.md) or [the vuls guide](https://github.com/albatrossflavour/vuls/blob/main/docs/guide/README.md). Each ends by handing over to [the Soundwave install guide](https://github.com/albatrossflavour/soundwave/blob/main/docs/guide/README.md), which goes from a working scanner to findings in VR, with a check at the end of each step.
 
 ## Reference
 
-- What Soundwave sends to VR and why, and forcing a push: [what Soundwave sends to PE](docs/pushing.md)
-- The findings file every cassette writes, and correlation: [findings file](docs/findings-file.md)
-- Every parameter: [REFERENCE.md](REFERENCE.md)
-- What changed in each release: [CHANGELOG.md](CHANGELOG.md)
+- What Soundwave sends to VR and why, and forcing a push: [what Soundwave sends to PE](https://github.com/albatrossflavour/soundwave/blob/main/docs/pushing.md)
+- The findings file every cassette writes, and correlation: [findings file](https://github.com/albatrossflavour/soundwave/blob/main/docs/findings-file.md)
+- Every parameter: [REFERENCE.md](https://github.com/albatrossflavour/soundwave/blob/main/REFERENCE.md)
+- What changed in each release: [CHANGELOG.md](https://github.com/albatrossflavour/soundwave/blob/main/CHANGELOG.md)
 
 ## Development
 

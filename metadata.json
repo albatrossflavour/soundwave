@@ -1,6 +1,6 @@
 {
   "name": "albatrossflavour-soundwave",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "author": "Tony Green",
   "summary": "Merge findings from any number of vulnerability scanners and push one set into PE Vulnerability Remediation",
   "license": "Apache-2.0",

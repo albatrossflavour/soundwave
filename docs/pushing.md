@@ -28,10 +28,6 @@ Ubuntu publishes some fixes only to Ubuntu Pro archives (versions with `~esm1`, 
 
 Greenbone names every distro advisory `Ubuntu: Security Advisory (USN-7917-1)`. The openvas cassette renames it `fonttools: Ubuntu USN-7917-1`, from the advisory's package list, so PE's list says which package it affects.
 
-## A second destination
-
-`findings_api_host` (default unset) also sends each cassette, unmerged and with every confidence, to a findings API on `findings_api_port` (default 10051). It's for the author's own consumer, whose API isn't published, so leave it unset. Each cassette goes as its own source in three calls: the list of checks the scanner ran, then one call per host, then a completion that clears hosts the run didn't mention. Bodies are gzipped, and the client authenticates with the node's agent certificate. That push is independent of the VR one, so a findings API that's down doesn't stop findings reaching PE.
-
 ## Troubleshooting
 
 PE refuses a scan date it already holds with a 409, before reading the body, and closes the connection. With a large body that shows up here as an SSL EOF rather than a 409. Soundwave records the scan date PE last accepted in `/var/lib/soundwave/pe-push-state.json` and doesn't resend it. To force a push, for example after VR has been reset, delete that file.

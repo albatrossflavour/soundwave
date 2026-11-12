@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require 'spec_helper'
+require 'json'
 
 # markdownlint only checks anchors inside one file, so a renamed heading would
 # break a link to it from another page without failing anything else.
@@ -9,9 +10,13 @@ describe 'links in the README and the docs' do
   slug = ->(heading) { heading.downcase.gsub(%r{[^\p{Word}\- ]}, '').tr(' ', '-') }
   anchors = ->(file) { File.read(file).then { |t| t.scan(%r{^#+ (.+)$}).flatten.map(&slug) + t.scan(%r{<a name="([^"]+)">}).flatten } }
   pages = [File.join(root, 'README.md')] + Dir[File.join(root, 'docs/**/*.md')]
+  # The Forge can't follow a README's relative links, so the README links to
+  # this repo on GitHub. Those are checked against the files here.
+  own = "https://github.com/albatrossflavour/#{JSON.parse(File.read(File.join(root, 'metadata.json')))['name'].split('-', 2).last}/blob/main/"
+  local = ->(link) { link.start_with?(own) ? File.join(root, link.delete_prefix(own)) : link }
 
   pages.each do |page|
-    File.read(page).scan(%r{\]\(([^)\s]+)\)}).flatten.grep_v(%r{\A[a-z]+:}).each do |link|
+    File.read(page).scan(%r{\]\(([^)\s]+)\)}).flatten.map(&local).grep_v(%r{\A[a-z]+:}).each do |link|
       path, anchor = link.split('#', 2)
       target = path.empty? ? page : File.expand_path(path, File.dirname(page))
 

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.1
+
+- The README links to the docs on GitHub, so they work on the Forge
+
 ## 0.1.0
 
 First release. Merges vulnerability findings from any number of scanners, each read by its own cassette, and pushes one set into Puppet Enterprise's Vulnerability Remediation service. Ships with cassettes for Greenbone and Vuls.

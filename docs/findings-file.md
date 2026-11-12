@@ -2,7 +2,7 @@
 
 **Soundwave is the engine. Cassettes are inputs. This file is the interface between them, and it is the only interface there is.**
 
-That separation is the point of the whole design, so it is worth being blunt about what it obliges. A cassette reads one scanner and writes this format. Soundwave reads this format and knows nothing else: not Greenbone, not Vuls, not what a KB is. Everything downstream, VR and any findings API set in `findings_api_host`, reads the same shape.
+That separation is the point of the whole design, so it is worth being blunt about what it obliges. A cassette reads one scanner and writes this format. Soundwave reads this format and knows nothing else: not Greenbone, not Vuls, not what a KB is. Everything downstream reads the same shape.
 
 **A new scanner is a new cassette and must cost nothing else.** No new field negotiated for it, no `if scanner == "x"` in the engine, no second endpoint, no change to this document. If adding one needs any of those, the interface was wrong and the fix belongs here rather than in the cassette. The test is not whether a third cassette can be made to work; it is whether it can be added without anyone touching Soundwave.
 
@@ -58,7 +58,7 @@ On the test estate the patch path is empty and the configuration path is not. Ev
 }
 ```
 
-Checks are normalised out of findings because both consumers want them that way. A findings API asks "which hosts have this check" and VR groups by vulnerability name. Leaving the vendor's prose inline would repeat a kilobyte of advisory text 23 times for the one sshd setting.
+Checks are normalised out of findings because VR groups by vulnerability name. Leaving the vendor's prose inline would repeat a kilobyte of advisory text 23 times for the one sshd setting.
 
 Everything that can vary per host lives in a finding. Everything that cannot lives in a check. If a cassette finds a check-level field varying across hosts, it has two checks and needs two IDs.
 
@@ -86,7 +86,7 @@ Everything that can vary per host lives in a finding. Everything that cannot liv
 
 **`scanner_version` and `feed` are `null` when the scanner does not report them**, never `""` or `{}`. A consumer keeps a key sent as `null` apart from one sent empty, and an empty value says "reported, and blank" when the truth is "not reported". The openvas cassette sends both as `null`: gvmd's report carries neither.
 
-`confidence_scale` says what the numbers in each finding's `confidence` are out of. A findings API may draw confidence bands at 70, Greenbone's default minimum QoD and the floor Soundwave applies for VR, and 70 only means something on 0-100: a cassette declaring any other range gets no bands drawn rather than every finding counted low. Both cassettes are 0-100, the openvas cassette's as Greenbone's QoD and the vuls cassette's as Vuls' detection confidence, and they say so. Optional, and a reader should assume 0-100 when it is absent, and say it is assuming. `kind` is free text a reader can use; nothing interprets it.
+`confidence_scale` says what the numbers in each finding's `confidence` are out of. Soundwave's floor for VR is 70, Greenbone's default minimum QoD, which only means something on 0-100. Both cassettes are 0-100, the openvas cassette's as Greenbone's QoD and the vuls cassette's as Vuls' detection confidence, and they say so. Optional, and a reader should assume 0-100 when it is absent, and say it is assuming. `kind` is free text a reader can use; nothing interprets it.
 
 ### hosts
 
@@ -321,7 +321,7 @@ Hosts union. A host in both cassettes keeps both sets of findings and both scan 
 
 Two scanners report the same weakness on one host under different names, and nothing in the format stops them: check IDs are namespaced precisely so they stay distinguishable, and a cassette is forbidden from knowing what another one covers. Soundwave is the only component that sees every cassette, so joining them is its job and nobody else's.
 
-**Report-only unless `compose_findings` is on.** With it off, groups are counted and sampled, nothing is merged, VR still gets a row per finding and a findings API still gets each cassette verbatim. The count came before the merge because overlap is otherwise invisible, and a rule whose effect nobody can see is a rule nobody can check. With it on, the groups are acted on as described under [Composing](#composing).
+**Report-only unless `compose_findings` is on.** With it off, groups are counted and sampled, nothing is merged, and VR still gets a row per finding. The count came before the merge because overlap is otherwise invisible, and a rule whose effect nobody can see is a rule nobody can check. With it on, the groups are acted on as described under [Composing](#composing).
 
 The key is `(certname, CVE, subject, fix_type)`.
 
@@ -361,7 +361,6 @@ A scanner that covers everything, rather than the platform-split pair here, will
 | Consumer | What it gets |
 |---|---|
 | VR | One record per set, across cassettes. VR has nowhere to put the sources, so the solution opens with one sentence naming the checks the record came from |
-| Findings API | Each cassette pushed on its own and as the scanner wrote it, not composed at all, so a consumer can keep every source apart and a stale scanner cannot hide inside a fresh one |
 
 Measured on the test estate before it shipped: 8 sets over 18 findings, 2 of them spanning cassettes, none capped. VR goes from 86 records to 80, and **no CVE on any host is lost or shown at a different score** than it was before.
 
