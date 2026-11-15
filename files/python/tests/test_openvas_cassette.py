@@ -581,11 +581,11 @@ def test_os_identity_is_empty_rather_than_wrong(cpe):
 
 
 def test_os_identity_warns_once_about_an_unmapped_vendor(caplog):
-    import cassettes.openvas as LB
-    LB._unmapped_os_vendors.discard("nobody")
+    import lib.os_identity as OS
+    OS._unmapped_os_vendors.discard("nobody")
     with caplog.at_level("WARNING", logger="transformer"):
-        assert LB._os_identity("cpe:/o:nobody:mystery_os:1.0") == ("", "")
-        LB._os_identity("cpe:/o:nobody:mystery_os:2.0")
+        assert _os_identity("cpe:/o:nobody:mystery_os:1.0") == ("", "")
+        _os_identity("cpe:/o:nobody:mystery_os:2.0")
     assert caplog.text.count("No os_family mapping") == 1
 
 

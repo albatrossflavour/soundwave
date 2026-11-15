@@ -41,6 +41,8 @@ describe 'soundwave' do
         it 'runs the openvas cassette, allowed to fail, then pushes' do
           expect(unit).to include("ExecStart=-#{dir}/python/env/bin/python3 #{dir}/python/src/cassettes/openvas.py\n")
           expect(unit).not_to include('vuls.py')
+          expect(unit).not_to include('nessus.py')
+          expect(unit).not_to include('rapid7.py')
           expect(unit).to end_with("ExecStart=#{dir}/python/env/bin/python3 #{dir}/python/src/soundwave.py\n")
         end
 
@@ -92,6 +94,113 @@ describe 'soundwave' do
           expect(unit).not_to include('openvas.py')
           expect(unit).to include("cassettes/vuls.py --results-dir=/var/lib/vuls/results --complete-file=/var/lib/vuls/last-complete-run")
           expect(unit).to include("--out=/var/lib/soundwave/cassettes/vuls.json\n")
+        end
+      end
+
+      context 'with the nessus cassette reading files' do
+        let(:params) { required.merge('nessus_cassette' => true) }
+
+        it 'runs it after openvas and before the push' do
+          expect(unit).to include("cassettes/openvas.py\nExecStart=-#{dir}/python/env/bin/python3 #{dir}/python/src/cassettes/nessus.py\nExecStart=#{dir}")
+        end
+
+        it 'creates the export directory for files to be dropped in' do
+          is_expected.to contain_file('/var/lib/soundwave/exports').with(ensure: 'directory', mode: '0770')
+          is_expected.to contain_file('/var/lib/soundwave/exports/nessus').with(ensure: 'directory', mode: '0770')
+        end
+
+        it 'writes no API settings' do
+          expect(config_ini).to match(%r{^\[NESSUS\]\nurl = \n})
+          expect(config_ini).to include("export_dir = /var/lib/soundwave/exports/nessus\n")
+        end
+      end
+
+      context 'with the nessus cassette exporting over the API' do
+        let(:params) do
+          required.merge('nessus_cassette' => true, 'nessus_url' => 'https://nessus.example.com:8834',
+                         'nessus_access_key' => sensitive('AK'), 'nessus_secret_key' => sensitive('S%K'),
+                         'nessus_scans' => ['Weekly Linux', 'Weekly Windows'])
+        end
+
+        it 'writes the keys and scans, doubling any % for ConfigParser' do
+          expect(config_ini).to include("url = https://nessus.example.com:8834\n", "access_key = AK\n",
+                                        "secret_key = S%%K\n", "scans = Weekly Linux|Weekly Windows\n")
+        end
+
+        it 'creates no export directory' do
+          is_expected.not_to contain_file('/var/lib/soundwave/exports/nessus')
+        end
+      end
+
+      context 'with the nessus API and no keys' do
+        let(:params) { required.merge('nessus_cassette' => true, 'nessus_url' => 'https://nessus.example.com:8834') }
+
+        it { is_expected.to compile.and_raise_error(%r{set nessus_access_key, nessus_secret_key and nessus_scans}) }
+      end
+
+      context 'with the rapid7 cassette generating a report' do
+        let(:params) do
+          required.merge('rapid7_cassette' => true, 'rapid7_url' => 'https://insightvm.example.com:3780',
+                         'rapid7_username' => 'soundwave', 'rapid7_password' => sensitive('pw'),
+                         'rapid7_report' => 'Soundwave XML')
+        end
+
+        it 'runs it before the push' do
+          expect(unit).to include("ExecStart=-#{dir}/python/env/bin/python3 #{dir}/python/src/cassettes/rapid7.py\n")
+        end
+
+        it 'writes the console settings' do
+          expect(config_ini).to include("url = https://insightvm.example.com:3780\n", "username = soundwave\n",
+                                        "password = pw\n", "report = Soundwave XML\n")
+        end
+      end
+
+      context 'with the rapid7 API and no report' do
+        let(:params) do
+          required.merge('rapid7_cassette' => true, 'rapid7_url' => 'https://insightvm.example.com:3780',
+                         'rapid7_username' => 'soundwave', 'rapid7_password' => sensitive('pw'))
+        end
+
+        it { is_expected.to compile.and_raise_error(%r{set rapid7_username, rapid7_password and rapid7_report}) }
+      end
+
+      context 'with the rapid7 cassette reading files from a directory of its own' do
+        let(:params) { required.merge('rapid7_cassette' => true, 'rapid7_export_dir' => '/srv/rapid7') }
+
+        it 'manages that directory and not its parent' do
+          is_expected.to contain_file('/srv/rapid7').with(ensure: 'directory', mode: '0770')
+          is_expected.not_to contain_file('/srv')
+          is_expected.not_to contain_file('/var/lib/soundwave/exports')
+        end
+      end
+
+      context 'with both file-mode cassettes sharing one drop folder' do
+        let(:params) do
+          required.merge('nessus_cassette' => true, 'nessus_export_dir' => '/srv/scans',
+                         'rapid7_cassette' => true, 'rapid7_export_dir' => '/srv/scans')
+        end
+
+        it { is_expected.to compile.with_all_deps }
+        it { is_expected.to contain_file('/srv/scans').with(ensure: 'directory') }
+      end
+
+      context 'with an export directory Soundwave already manages' do
+        let(:params) { required.merge('nessus_cassette' => true, 'nessus_export_dir' => '/var/lib/soundwave/cassettes') }
+
+        it { is_expected.to compile.with_all_deps }
+      end
+
+      context 'with % in an export path and the nessus url' do
+        let(:params) do
+          required.merge('nessus_cassette' => true, 'nessus_url' => 'https://nessus.example.com/%7Esvc',
+                         'nessus_access_key' => sensitive('ak'), 'nessus_secret_key' => sensitive('sk'),
+                         'nessus_scans' => ['Weekly'], 'rapid7_cassette' => true, 'rapid7_export_dir' => '/srv/100%')
+        end
+
+        it 'doubles it for ConfigParser' do
+          expect(config_ini).to include("url = https://nessus.example.com/%%7Esvc\n")
+          expect(config_ini).to include("export_dir = /srv/100%%\n")
+          is_expected.to contain_file('/srv/100%').with(ensure: 'directory')
         end
       end
 

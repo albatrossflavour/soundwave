@@ -28,6 +28,7 @@ from lib import findings as F  # noqa: E402
 from lib.config_helper import load_transformer_parameters  # noqa: E402
 from lib.host_map import load_host_map  # noqa: E402
 from lib.openvas_client import get_latest_report  # noqa: E402
+from lib.os_identity import os_from_cpe as _os_identity  # noqa: E402
 
 logger = logging.getLogger("transformer")
 
@@ -78,60 +79,6 @@ _FIX_TYPE = {
     "noneavailable": "none-available",
     "willnotfix": "will-not-fix",
 }
-
-# Greenbone reports the OS it settled on as a CPE, `best_os_cpe`, on every host
-# it fingerprinted: cpe:/o:canonical:ubuntu_linux:24.04:-:lts. The family names
-# on the right are Vuls's, deliberately, because the vuls cassette already writes them and
-# two cassettes describing one host in two vocabularies is the fault this field
-# was empty instead of. Keyed on the CPE vendor, with the product only where a
-# vendor ships more than one OS line.
-_OS_FAMILY_BY_CPE_VENDOR = {
-    "canonical": "ubuntu",
-    "debian": "debian",
-    "oracle": "oracle",
-    "almalinux": "alma",
-    "rocky": "rocky",
-    "redhat": "redhat",
-    "centos": "centos",
-    "fedoraproject": "fedora",
-    "amazon": "amazon",
-    "suse": "suse",
-    "opensuse": "opensuse",
-    "microsoft": "windows",
-}
-
-_CPE_OS_RE = re.compile(r"^cpe:/o:(?P<vendor>[^:]+):(?P<product>[^:]+)(?::(?P<version>[^:]+))?")
-
-# Families already seen and reported as unmapped, so one unknown distro logs
-# once per run rather than once per host.
-_unmapped_os_vendors = set()
-
-
-def _os_identity(cpe):
-    """(os_family, os_release) from Greenbone's best_os_cpe, or ("", "").
-
-    An unrecognised vendor returns empty and says so. Guessing a family from a
-    string nobody has checked is how a consumer ends up grouping two distros
-    together, and an empty field at least reads as absent.
-    """
-    match = _CPE_OS_RE.match((cpe or "").strip())
-    if not match:
-        return "", ""
-    vendor = match.group("vendor").lower()
-    family = _OS_FAMILY_BY_CPE_VENDOR.get(vendor, "")
-    if not family:
-        if vendor not in _unmapped_os_vendors:
-            _unmapped_os_vendors.add(vendor)
-            logger.warning(f"No os_family mapping for CPE vendor {vendor!r} ({cpe}); left empty")
-        return "", ""
-    version = (match.group("version") or "").strip()
-    if family == "windows":
-        # Windows carries the release in the product, not the version:
-        # cpe:/o:microsoft:windows_server_2022:standard_x64. The vuls cassette writes
-        # "Windows Server 2022" from Vuls, so this has to render the same.
-        return family, match.group("product").replace("_", " ").strip().title()
-    return family, version
-
 
 # Host details that say the scan logged in. Without one the findings are real
 # but the package list is absent, which is a different kind of blind.

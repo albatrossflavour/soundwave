@@ -22,7 +22,8 @@ writes the scanner-neutral findings file (docs/findings-file.md) into
 $cassette_dir and Soundwave merges whatever is there, so a third scanner is
 another cassette rather than another integration.
 
-Two cassettes ship with it, each named for its scanner. The **openvas**
+Two cassettes ship with it, each named for its scanner, and two more,
+**nessus** and **rapid7**, are experimental and off by default. The **openvas**
 cassette reads Greenbone over GMP, and is on by default. The **vuls** cassette
 reads the run the vuls module last recorded as complete, and is off by
 default. Each runs before the push, and one that fails leaves its previous
@@ -69,6 +70,22 @@ The following parameters are available in the `soundwave` class:
 * [`vuls_config`](#-soundwave--vuls_config)
 * [`vuls_windows_config`](#-soundwave--vuls_windows_config)
 * [`vuls_database`](#-soundwave--vuls_database)
+* [`nessus_cassette`](#-soundwave--nessus_cassette)
+* [`nessus_url`](#-soundwave--nessus_url)
+* [`nessus_access_key`](#-soundwave--nessus_access_key)
+* [`nessus_secret_key`](#-soundwave--nessus_secret_key)
+* [`nessus_scans`](#-soundwave--nessus_scans)
+* [`nessus_ca_cert`](#-soundwave--nessus_ca_cert)
+* [`nessus_export_dir`](#-soundwave--nessus_export_dir)
+* [`rapid7_cassette`](#-soundwave--rapid7_cassette)
+* [`rapid7_url`](#-soundwave--rapid7_url)
+* [`rapid7_username`](#-soundwave--rapid7_username)
+* [`rapid7_password`](#-soundwave--rapid7_password)
+* [`rapid7_report`](#-soundwave--rapid7_report)
+* [`rapid7_ca_cert`](#-soundwave--rapid7_ca_cert)
+* [`rapid7_timezone`](#-soundwave--rapid7_timezone)
+* [`rapid7_export_dir`](#-soundwave--rapid7_export_dir)
+* [`export_timeout`](#-soundwave--export_timeout)
 * [`findings_api_host`](#-soundwave--findings_api_host)
 * [`findings_api_port`](#-soundwave--findings_api_port)
 * [`correlate`](#-soundwave--correlate)
@@ -271,6 +288,156 @@ Data type: `Stdlib::Absolutepath`
 The Vuls database, whose age is the cassette's feed time.
 
 Default value: `'/var/lib/vuls/vuls.db'`
+
+##### <a name="-soundwave--nessus_cassette"></a>`nessus_cassette`
+
+Data type: `Boolean`
+
+Run the nessus cassette before each push. Experimental: built against
+Tenable's documented .nessus format and API, and not yet run against a real
+scanner. It reads Nessus, Tenable Vulnerability Management and Tenable.sc
+exports, all of which share that format. With nessus_url set it exports
+each of nessus_scans over the API; without, it reads every .nessus file in
+nessus_export_dir.
+
+Default value: `false`
+
+##### <a name="-soundwave--nessus_url"></a>`nessus_url`
+
+Data type: `Optional[Stdlib::HTTPSUrl]`
+
+Base URL of the Nessus scanner (`https://nessus.example.com:8834`) or of
+Tenable Vulnerability Management (`https://cloud.tenable.com`). Unset reads
+files from nessus_export_dir instead.
+
+Default value: `undef`
+
+##### <a name="-soundwave--nessus_access_key"></a>`nessus_access_key`
+
+Data type: `Optional[Sensitive[String[1]]]`
+
+API access key. Required with nessus_url.
+
+Default value: `undef`
+
+##### <a name="-soundwave--nessus_secret_key"></a>`nessus_secret_key`
+
+Data type: `Optional[Sensitive[String[1]]]`
+
+API secret key. Required with nessus_url.
+
+Default value: `undef`
+
+##### <a name="-soundwave--nessus_scans"></a>`nessus_scans`
+
+Data type: `Array[String[1]]`
+
+Names of the scans to export, each its latest completed run. Required with
+nessus_url.
+
+Default value: `[]`
+
+##### <a name="-soundwave--nessus_ca_cert"></a>`nessus_ca_cert`
+
+Data type: `Optional[Stdlib::Absolutepath]`
+
+CA bundle that signed the scanner's certificate. Nessus signs its own at
+install, with its CA at `/opt/nessus/com/nessus/CA/cacert.pem` on the
+scanner. Verification is never turned off, because the requests carry the
+API keys.
+
+Default value: `undef`
+
+##### <a name="-soundwave--nessus_export_dir"></a>`nessus_export_dir`
+
+Data type: `Stdlib::Absolutepath`
+
+Where .nessus files are read from when nessus_url is unset. Every file in
+it is read on every run, so it should hold only the exports to push.
+
+Default value: `'/var/lib/soundwave/exports/nessus'`
+
+##### <a name="-soundwave--rapid7_cassette"></a>`rapid7_cassette`
+
+Data type: `Boolean`
+
+Run the rapid7 cassette before each push. Experimental: built against
+Rapid7's documented XML Export 2.0 format and console API, and not yet run
+against a real console. It reads InsightVM and Nexpose. With rapid7_url
+set it generates rapid7_report over the API; without, it reads every .xml
+file in rapid7_export_dir.
+
+Default value: `false`
+
+##### <a name="-soundwave--rapid7_url"></a>`rapid7_url`
+
+Data type: `Optional[Stdlib::HTTPSUrl]`
+
+Base URL of the InsightVM or Nexpose security console
+(`https://insightvm.example.com:3780`). Unset reads files from
+rapid7_export_dir instead.
+
+Default value: `undef`
+
+##### <a name="-soundwave--rapid7_username"></a>`rapid7_username`
+
+Data type: `Optional[String[1]]`
+
+Console user that can generate and download rapid7_report.
+
+Default value: `undef`
+
+##### <a name="-soundwave--rapid7_password"></a>`rapid7_password`
+
+Data type: `Optional[Sensitive[String[1]]]`
+
+That user's password.
+
+Default value: `undef`
+
+##### <a name="-soundwave--rapid7_report"></a>`rapid7_report`
+
+Data type: `Optional[String[1]]`
+
+Name of a report on the console in the XML Export 2.0 format, scoped to the
+sites to push. The cassette generates it each run and reads the result.
+
+Default value: `undef`
+
+##### <a name="-soundwave--rapid7_ca_cert"></a>`rapid7_ca_cert`
+
+Data type: `Optional[Stdlib::Absolutepath]`
+
+CA bundle that signed the console's certificate.
+
+Default value: `undef`
+
+##### <a name="-soundwave--rapid7_timezone"></a>`rapid7_timezone`
+
+Data type: `String[1]`
+
+The timezone set on rapid7_report, as an IANA name. XML Export 2.0 writes
+times with no zone, so the cassette has to be told which one they are in,
+or every host's scan time is wrong by the offset.
+
+Default value: `'UTC'`
+
+##### <a name="-soundwave--rapid7_export_dir"></a>`rapid7_export_dir`
+
+Data type: `Stdlib::Absolutepath`
+
+Where XML Export 2.0 files are read from when rapid7_url is unset.
+
+Default value: `'/var/lib/soundwave/exports/rapid7'`
+
+##### <a name="-soundwave--export_timeout"></a>`export_timeout`
+
+Data type: `Integer[1]`
+
+Seconds the nessus and rapid7 cassettes wait for the scanner to prepare an
+export before giving up.
+
+Default value: `1800`
 
 ##### <a name="-soundwave--findings_api_host"></a>`findings_api_host`
 

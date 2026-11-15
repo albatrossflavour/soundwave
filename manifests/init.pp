@@ -6,7 +6,8 @@
 # $cassette_dir and Soundwave merges whatever is there, so a third scanner is
 # another cassette rather than another integration.
 #
-# Two cassettes ship with it, each named for its scanner. The **openvas**
+# Two cassettes ship with it, each named for its scanner, and two more,
+# **nessus** and **rapid7**, are experimental and off by default. The **openvas**
 # cassette reads Greenbone over GMP, and is on by default. The **vuls** cassette
 # reads the run the vuls module last recorded as complete, and is off by
 # default. Each runs before the push, and one that fails leaves its previous
@@ -73,6 +74,60 @@
 #   The vuls module's windows.json, for the Windows hosts it expected.
 # @param vuls_database
 #   The Vuls database, whose age is the cassette's feed time.
+# @param nessus_cassette
+#   Run the nessus cassette before each push. Experimental: built against
+#   Tenable's documented .nessus format and API, and not yet run against a real
+#   scanner. It reads Nessus, Tenable Vulnerability Management and Tenable.sc
+#   exports, all of which share that format. With nessus_url set it exports
+#   each of nessus_scans over the API; without, it reads every .nessus file in
+#   nessus_export_dir.
+# @param nessus_url
+#   Base URL of the Nessus scanner (`https://nessus.example.com:8834`) or of
+#   Tenable Vulnerability Management (`https://cloud.tenable.com`). Unset reads
+#   files from nessus_export_dir instead.
+# @param nessus_access_key
+#   API access key. Required with nessus_url.
+# @param nessus_secret_key
+#   API secret key. Required with nessus_url.
+# @param nessus_scans
+#   Names of the scans to export, each its latest completed run. Required with
+#   nessus_url.
+# @param nessus_ca_cert
+#   CA bundle that signed the scanner's certificate. Nessus signs its own at
+#   install, with its CA at `/opt/nessus/com/nessus/CA/cacert.pem` on the
+#   scanner. Verification is never turned off, because the requests carry the
+#   API keys.
+# @param nessus_export_dir
+#   Where .nessus files are read from when nessus_url is unset. Every file in
+#   it is read on every run, so it should hold only the exports to push.
+# @param rapid7_cassette
+#   Run the rapid7 cassette before each push. Experimental: built against
+#   Rapid7's documented XML Export 2.0 format and console API, and not yet run
+#   against a real console. It reads InsightVM and Nexpose. With rapid7_url
+#   set it generates rapid7_report over the API; without, it reads every .xml
+#   file in rapid7_export_dir.
+# @param rapid7_url
+#   Base URL of the InsightVM or Nexpose security console
+#   (`https://insightvm.example.com:3780`). Unset reads files from
+#   rapid7_export_dir instead.
+# @param rapid7_username
+#   Console user that can generate and download rapid7_report.
+# @param rapid7_password
+#   That user's password.
+# @param rapid7_report
+#   Name of a report on the console in the XML Export 2.0 format, scoped to the
+#   sites to push. The cassette generates it each run and reads the result.
+# @param rapid7_ca_cert
+#   CA bundle that signed the console's certificate.
+# @param rapid7_timezone
+#   The timezone set on rapid7_report, as an IANA name. XML Export 2.0 writes
+#   times with no zone, so the cassette has to be told which one they are in,
+#   or every host's scan time is wrong by the offset.
+# @param rapid7_export_dir
+#   Where XML Export 2.0 files are read from when rapid7_url is unset.
+# @param export_timeout
+#   Seconds the nessus and rapid7 cassettes wait for the scanner to prepare an
+#   export before giving up.
 # @param findings_api_host
 #   Host running a findings API, for the author's own consumer, whose API isn't
 #   published. Unset disables the push, which is the default. Set, Soundwave
@@ -151,6 +206,22 @@ class soundwave (
   Stdlib::Absolutepath $vuls_config         = '/etc/vuls/config.toml',
   Stdlib::Absolutepath $vuls_windows_config = '/etc/vuls/windows.json',
   Stdlib::Absolutepath $vuls_database       = '/var/lib/vuls/vuls.db',
+  Boolean $nessus_cassette            = false,
+  Optional[Stdlib::HTTPSUrl] $nessus_url               = undef,
+  Optional[Sensitive[String[1]]] $nessus_access_key    = undef,
+  Optional[Sensitive[String[1]]] $nessus_secret_key    = undef,
+  Array[String[1]] $nessus_scans      = [],
+  Optional[Stdlib::Absolutepath] $nessus_ca_cert       = undef,
+  Stdlib::Absolutepath $nessus_export_dir   = '/var/lib/soundwave/exports/nessus',
+  Boolean $rapid7_cassette            = false,
+  Optional[Stdlib::HTTPSUrl] $rapid7_url               = undef,
+  Optional[String[1]] $rapid7_username                 = undef,
+  Optional[Sensitive[String[1]]] $rapid7_password      = undef,
+  Optional[String[1]] $rapid7_report                   = undef,
+  Optional[Stdlib::Absolutepath] $rapid7_ca_cert       = undef,
+  String[1] $rapid7_timezone          = 'UTC',
+  Stdlib::Absolutepath $rapid7_export_dir   = '/var/lib/soundwave/exports/rapid7',
+  Integer[1] $export_timeout          = 1800,
   Integer[0, 100] $min_confidence     = 70,
   Boolean $correlate                  = false,
   Boolean $compose_findings           = false,
@@ -176,6 +247,16 @@ class soundwave (
   }
   if $openvas_cassette and $_gmp_password =~ Undef {
     fail('soundwave: the openvas cassette reads Greenbone over GMP, so set soundwave::gmp_password, or turn openvas_cassette off')
+  }
+  if $nessus_cassette and $nessus_url =~ NotUndef {
+    if $nessus_access_key =~ Undef or $nessus_secret_key =~ Undef or $nessus_scans.empty {
+      fail('soundwave: the nessus cassette exports over the API when nessus_url is set, so set nessus_access_key, nessus_secret_key and nessus_scans, or unset nessus_url to read files from nessus_export_dir')
+    }
+  }
+  if $rapid7_cassette and $rapid7_url =~ NotUndef {
+    if $rapid7_username =~ Undef or $rapid7_password =~ Undef or $rapid7_report =~ Undef {
+      fail('soundwave: the rapid7 cassette generates a report over the API when rapid7_url is set, so set rapid7_username, rapid7_password and rapid7_report, or unset rapid7_url to read files from rapid7_export_dir')
+    }
   }
   # The openvas module writes this beside its compose file. Only the openvas
   # cassette has addresses to map.
@@ -243,6 +324,31 @@ class soundwave (
     mode   => '0770',
   }
 
+  # A cassette reading files rather than an API needs somewhere for them to be
+  # dropped. cassette_group lets whatever copies them in write there.
+  $_export_dirs = [
+    ($nessus_cassette and $nessus_url =~ Undef).bool2str($nessus_export_dir, ''),
+    ($rapid7_cassette and $rapid7_url =~ Undef).bool2str($rapid7_export_dir, ''),
+  # One folder can serve both cassettes, and one Soundwave already manages is
+  # left to that resource; a second declaration would stop the catalogue.
+  ].filter |$d| { !($d in ['', '/var/lib/soundwave', '/var/lib/soundwave/exports', $cassette_dir]) }.unique
+  # Only the default parent is Soundwave's to create. An export directory set
+  # elsewhere gets managed itself, never whatever it sits in.
+  if $_export_dirs.any |$d| { $d =~ /^\/var\/lib\/soundwave\/exports\// } {
+    file { '/var/lib/soundwave/exports':
+      ensure => directory,
+      owner  => 'root',
+      group  => $cassette_group,
+      mode   => '0770',
+    }
+  }
+  file { $_export_dirs:
+    ensure => directory,
+    owner  => 'root',
+    group  => $cassette_group,
+    mode   => '0770',
+  }
+
   if $run_in_venv {
     python::pyvenv { 'soundwave-env':
       ensure     => present,
@@ -289,10 +395,18 @@ class soundwave (
     true    => "ExecStart=-${python_path} ${install_path}/python/src/cassettes/vuls.py --results-dir=${vuls_results_dir} --complete-file=${vuls_complete_file} --config=${vuls_config} --windows-config=${vuls_windows_config} --database=${vuls_database} --out=${cassette_dir}/vuls.json\n",
     default => '',
   }
+  $_nessus_step = $nessus_cassette ? {
+    true    => "ExecStart=-${python_path} ${install_path}/python/src/cassettes/nessus.py\n",
+    default => '',
+  }
+  $_rapid7_step = $rapid7_cassette ? {
+    true    => "ExecStart=-${python_path} ${install_path}/python/src/cassettes/rapid7.py\n",
+    default => '',
+  }
   $_service = @("EOT")
     [Service]
     Type=oneshot
-    ${_openvas_step}${_vuls_step}ExecStart=${python_path} ${install_path}/python/src/soundwave.py
+    ${_openvas_step}${_vuls_step}${_nessus_step}${_rapid7_step}ExecStart=${python_path} ${install_path}/python/src/soundwave.py
     | EOT
 
   systemd::timer { 'soundwave.timer':
@@ -305,7 +419,8 @@ class soundwave (
     require         => [File[$install_path], File[$cassette_dir]],
   }
 
-  # Both files hold secrets (the PE token, the GMP credentials), so root only.
+  # Both files hold secrets (the PE token, the GMP credentials, any scanner API
+  # keys), so root only.
   file { "${install_path}/python/config.ini":
     ensure  => file,
     owner   => 'root',
@@ -338,6 +453,20 @@ class soundwave (
         'correlation_exceptions'  => $correlation_exceptions,
         'findings_api_host'       => $findings_api_host,
         'findings_api_port'       => $findings_api_port,
+        'nessus_url'              => $nessus_url,
+        'nessus_access_key'       => $nessus_access_key,
+        'nessus_secret_key'       => $nessus_secret_key,
+        'nessus_scans'            => $nessus_scans,
+        'nessus_ca_cert'          => $nessus_ca_cert,
+        'nessus_export_dir'       => $nessus_export_dir,
+        'rapid7_url'              => $rapid7_url,
+        'rapid7_username'         => $rapid7_username,
+        'rapid7_password'         => $rapid7_password,
+        'rapid7_report'           => $rapid7_report,
+        'rapid7_ca_cert'          => $rapid7_ca_cert,
+        'rapid7_export_dir'       => $rapid7_export_dir,
+        'rapid7_timezone'         => $rapid7_timezone,
+        'export_timeout'          => $export_timeout,
     }).node_encrypt::secret,
     require => File[$install_path],
   }

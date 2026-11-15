@@ -24,6 +24,20 @@ Boolean $compose_findings,
 Optional[String[1]] $correlation_exceptions,
 Optional[String[1]] $findings_api_host,
 Stdlib::Port $findings_api_port,
+Optional[String[1]] $nessus_url,
+Optional[Sensitive[String[1]]] $nessus_access_key,
+Optional[Sensitive[String[1]]] $nessus_secret_key,
+Array[String[1]] $nessus_scans,
+Optional[String[1]] $nessus_ca_cert,
+String[1] $nessus_export_dir,
+Optional[String[1]] $rapid7_url,
+Optional[String[1]] $rapid7_username,
+Optional[Sensitive[String[1]]] $rapid7_password,
+Optional[String[1]] $rapid7_report,
+Optional[String[1]] $rapid7_ca_cert,
+String[1] $rapid7_export_dir,
+String[1] $rapid7_timezone,
+Integer[1] $export_timeout,
 | -%>
 [DEFAULT]
 schedule = <%= $sync_schedule %>
@@ -59,3 +73,24 @@ scan_name = <%= $scan_name %>
 docker_cmd = <%= $docker_cmd %>
 gmp_timeout = <%= $gmp_timeout %>
 host_map_file = <%= $host_map_file %>
+# ConfigParser interpolates %, so each value a person supplies below is
+# written with % doubled.
+[NESSUS]
+url = <%= regsubst("${nessus_url}", '%', '%%', 'G') %>
+access_key = <%= $nessus_access_key.then |$k| { regsubst($k.unwrap, '%', '%%', 'G') } %>
+secret_key = <%= $nessus_secret_key.then |$k| { regsubst($k.unwrap, '%', '%%', 'G') } %>
+scans = <%= regsubst($nessus_scans.join('|'), '%', '%%', 'G') %>
+ca_cert = <%= regsubst("${nessus_ca_cert}", '%', '%%', 'G') %>
+export_dir = <%= regsubst("${nessus_export_dir}", '%', '%%', 'G') %>
+timeout = <%= $export_timeout %>
+host_map_file = <%= regsubst("${host_map_file}", '%', '%%', 'G') %>
+[RAPID7]
+url = <%= regsubst("${rapid7_url}", '%', '%%', 'G') %>
+username = <%= $rapid7_username.then |$u| { regsubst($u, '%', '%%', 'G') } %>
+password = <%= $rapid7_password.then |$p| { regsubst($p.unwrap, '%', '%%', 'G') } %>
+report = <%= $rapid7_report.then |$r| { regsubst($r, '%', '%%', 'G') } %>
+ca_cert = <%= regsubst("${rapid7_ca_cert}", '%', '%%', 'G') %>
+export_dir = <%= regsubst("${rapid7_export_dir}", '%', '%%', 'G') %>
+timezone = <%= regsubst("${rapid7_timezone}", '%', '%%', 'G') %>
+timeout = <%= $export_timeout %>
+host_map_file = <%= regsubst("${host_map_file}", '%', '%%', 'G') %>
