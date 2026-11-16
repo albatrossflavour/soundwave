@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.0
+
+- Upgrading removes scripts the module no longer ships, where before a renamed or deleted one stayed on the node
+- The openvas cassette now leaves `os_release` empty for a Windows host whose CPE names no release, in place of "Windows"
+- Windows Server 2008 R2 and 2012 R2 keep their R2 in `os_release`
+
 ## 0.1.1
 
 - The README links to the docs on GitHub, so they work on the Forge
