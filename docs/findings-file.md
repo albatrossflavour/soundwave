@@ -381,7 +381,7 @@ Everything the format asks for is in the GMP report already, and most of it is t
 
 **`os_family` is a shared vocabulary, not each cassette's own words.** Greenbone gives the OS as a CPE (`cpe:/o:canonical:ubuntu_linux:24.04:-:lts`) and Vuls gives a family name, and if a cassette simply passes its scanner's spelling through then one host is `canonical` in one file and `ubuntu` in the other, which is worse than the field being absent. Every cassette maps onto the same set: `ubuntu`, `debian`, `rocky`, `alma`, `oracle`, `redhat`, `centos`, `fedora`, `amazon`, `suse`, `opensuse`, `windows`. A vendor nobody has mapped yet writes an empty family and logs that it did, rather than inventing one.
 
-Windows is the awkward one and worth spelling out: the release lives in the CPE product (`windows_server_2022`) rather than the version field, so it is rendered from there as `Windows Server 2022`.
+Windows is the awkward one and worth spelling out: the release lives in the CPE product (`windows_server_2022`) rather than the version field, so it is rendered from there as `Windows Server 2022`. A bare `cpe:/o:microsoft:windows` names no release, so `os_release` is left empty.
 
 **`os_release` is the scanner's own precision and the two do not always agree.** Greenbone fingerprints Debian as `12.15` where Vuls reports `12`, so the same host carries a different release in each cassette's file. Neither is wrong and neither is normalised here, because truncating one to match the other would invent a rule for one distro. Anything joining on `os_release` across cassettes needs to know that; anything joining on `os_family` does not.
 

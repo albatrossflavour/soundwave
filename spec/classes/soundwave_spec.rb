@@ -23,7 +23,7 @@ describe 'soundwave' do
 
         it { is_expected.to contain_file(dir).with_ensure('directory') }
         it { is_expected.to contain_file("#{dir}/python").with_ensure('directory') }
-        it { is_expected.to contain_file("#{dir}/python/src").with(recurse: 'remote', purge: true, source: 'puppet:///modules/soundwave/python/src') }
+        it { is_expected.to contain_file("#{dir}/python/src").with(recurse: true, purge: true, ignore: ['__pycache__'], source: 'puppet:///modules/soundwave/python/src') }
         it { is_expected.to contain_file("#{dir}/python/requirements.txt").that_requires("File[#{dir}/python/src]") }
 
         ['/var/lib/soundwave', '/var/lib/soundwave/cassettes'].each do |d|

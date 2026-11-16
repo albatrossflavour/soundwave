@@ -301,10 +301,15 @@ class soundwave (
     ensure => 'directory',
   }
 
+  # recurse => true, not remote: purge only removes what recursion finds, and
+  # remote recursion never looks at files that exist only on the node, so a
+  # renamed or deleted script would stay behind. Python's bytecode caches are
+  # the node's own and are left alone.
   file { "${install_path}/python/src":
     ensure  => directory,
-    recurse => remote,
+    recurse => true,
     purge   => true,
+    ignore  => ['__pycache__'],
     replace => true,
     source  => 'puppet:///modules/soundwave/python/src',
     require => File[$install_path],
