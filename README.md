@@ -21,7 +21,7 @@ A nightly systemd timer runs each cassette that's turned on, then registers with
 
 - Puppet Enterprise Advanced with [VR enabled](https://help.puppet.com/pe/current/topics/advanced-patching.htm), and a PE RBAC token that can push to it
 - TCP 8146 open from the Soundwave node to the PE primary, where VR listens
-- Puppet 8 and an agent certificate. Secrets are encrypted to it with `node_encrypt`, and the push authenticates with it
+- Puppet 8 or 9 and an agent certificate. Secrets are encrypted to it with `node_encrypt`, and the push authenticates with it
 - Python 3.9 or later from the OS, on Ubuntu 22.04, 24.04, or 26.04, Debian 11 or 12, Red Hat 8 or 9, or AlmaLinux 9 or 10
 
 ## Getting started

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.1
+
+- Supports Puppet 9 and `puppetlabs-node_encrypt` 4.x, so `pe_status_check` stops reporting the module's dependency caps
+
 ## 0.2.0
 
 - Upgrading removes scripts the module no longer ships, where before a renamed or deleted one stayed on the node

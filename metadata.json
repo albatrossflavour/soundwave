@@ -1,6 +1,6 @@
 {
   "name": "albatrossflavour-soundwave",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "author": "Tony Green",
   "summary": "Merge findings from any number of vulnerability scanners and push one set into PE Vulnerability Remediation",
   "license": "Apache-2.0",
@@ -18,7 +18,7 @@
     },
     {
       "name": "puppetlabs/node_encrypt",
-      "version_requirement": ">= 3.0.0 < 4.0.0"
+      "version_requirement": ">= 3.0.0 < 5.0.0"
     },
     {
       "name": "puppetlabs/stdlib",
@@ -59,7 +59,7 @@
   "requirements": [
     {
       "name": "puppet",
-      "version_requirement": ">= 8.0.0 < 9.0.0"
+      "version_requirement": ">= 8.0.0 < 10.0.0"
     }
   ],
   "pdk-version": "4.0.1",
