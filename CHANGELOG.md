@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.2
+
+- A transformer still pending in PE no longer stops the run. Soundwave skips the VR push and logs why, and still writes the cassette metrics and pushes to the findings API. In 0.2.1 the run ended at registration, so an unaccepted transformer looked like missing cassettes
+- `metrics_file` gains `soundwave_vr_transformer_state`, 1 on what registration found: `active`, `pending`, `conflict`, `error`, or `unchecked`. A pending run still counts as a success in `soundwave_last_run_success`
+- A findings API push that fails or raises, or a registration that raises, no longer stops the other outputs
+
 ## 0.2.1
 
 - Supports Puppet 9 and `puppetlabs-node_encrypt` 4.x, so `pe_status_check` stops reporting the module's dependency caps
