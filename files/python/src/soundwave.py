@@ -17,7 +17,7 @@ without saying so:
   dropping clean hosts is how a patched node shows its old findings forever.
 
 Freshness is tracked per cassette, so a stale vuls cassette cannot hide behind a fresh
-The openvas cassette.
+openvas one.
 """
 
 import json
@@ -67,24 +67,36 @@ def handle_registration(params):
     return res
 
 
+# The states (lib.metrics.VR_STATES) the VR push goes ahead in. Pending skips
+# it but still counts as a successful run: the transformer is waiting for
+# someone to accept it in the console, which no rerun can fix, and the findings
+# API push and the metrics went ahead anyway. soundwave_vr_transformer_state is
+# what says so.
+VR_PUSHABLE = ("active", "unchecked")
+
+
 def register(pe_params):
-    """Returns None to carry on, or an exit code to stop on."""
+    """Registers with VR if it isn't already, and returns the state it found (one of lib.metrics.VR_STATES)."""
     if not bool(int(pe_params.get("register", 1))):
         logger.info("Registration disabled.")
-        return None
-    res = handle_registration(pe_params)
+        return "unchecked"
+    try:
+        res = handle_registration(pe_params)
+    except Exception:
+        logger.exception("Registration failed")
+        return "error"
     if res["status"] == TRANSFORMER_STATUS_PENDING:
         logger.info("Registration successful. Transformer is Pending Activation.")
-        return 0
+        return "pending"
     if res["status"] == TRANSFORMER_STATUS_EXISTS:
         if res["data"]["message"] == TRANSFORMER_MESSAGE_CREATED:
             logger.info("Transformer ID Registered and Active.")
-            return None
+            return "active"
         if res["data"]["message"] == TRANSFORMER_MESSAGE_OTHER:
             logger.error("Transformer with different ID is in Active or Pending State.")
-            return 1
+            return "conflict"
     logger.error(f"Registration failed. {res}")
-    return 1
+    return "error"
 
 
 def record_cassettes(documents, metrics):
@@ -219,20 +231,58 @@ def write_held_scan_date(path, scan_date):
         logger.warning(f"Could not write push state {path}: {e}")
 
 
-def run(pe_params, defaults, metrics):
-    """One Soundwave run. Returns the process exit code."""
-    stop = register(pe_params)
-    if stop is not None:
-        return stop
+def push_to_findings_api(pe_params, defaults, documents, metrics):
+    """Each cassette to the findings API, when one is configured.
 
+    Each cassette as the scanner wrote it, composed or not: composition is for
+    VR. The findings API takes raw findings per source and stores no
+    merged-record fields.
+
+    One cassette, one run, one sweep. Not the merged set: the findings API keys
+    everything by cassette so a stale vuls cassette cannot hide behind a fresh
+    openvas one, and merging on the way in would throw that away.
+
+    A failure here is logged and counted in soundwave_findings_api_hosts_accepted
+    and fails nothing else. A cassette that raises doesn't stop the next one.
+    """
+    findings_params = _findings_params(pe_params, defaults)
+    if not findings_params:
+        return
+    accepted = []
+    for document in documents:
+        try:
+            accepted.append(push_findings(findings_params, document))
+        except Exception:
+            name = (document.get("cassette") or {}).get("name", "?")
+            logger.exception(f"findings API: {name} not pushed")
+            accepted.append(None)
+    metrics.findings_api_hosts = sum(a for a in accepted if a is not None) if accepted else None
+
+
+def run(pe_params, defaults, metrics):
+    """One Soundwave run. Returns the process exit code.
+
+    Three outputs, each independent of the others: the cassette metrics, the
+    findings API push, and the VR push. VR's state gates the VR push and
+    nothing else. Before 0.2.2 a pending transformer ended the run before the
+    other two, so a transformer nobody had accepted yet showed up as missing
+    cassettes and an empty findings API.
+    """
     cassette_dir = defaults.get("cassette_dir", "")
     documents = F.read_cassettes(cassette_dir)
+    if documents:
+        logger.info(f"Merging {len(documents)} cassette(s): "
+                    f"{', '.join(sorted((d.get('cassette') or {}).get('name', '?') for d in documents))}")
+        record_cassettes(documents, metrics)
+        push_to_findings_api(pe_params, defaults, documents, metrics)
+
+    # Registration runs even with no cassettes, so a fresh install's
+    # transformer is waiting in the console by the time the first scan lands.
+    metrics.vr_state = register(pe_params)
+
     if not documents:
         logger.error(f"No readable cassettes in {cassette_dir}; nothing to push")
         return 1
-    logger.info(f"Merging {len(documents)} cassette(s): "
-                f"{', '.join(sorted((d.get('cassette') or {}).get('name', '?') for d in documents))}")
-    record_cassettes(documents, metrics)
 
     report_correlations(documents, defaults, metrics)
 
@@ -249,24 +299,18 @@ def run(pe_params, defaults, metrics):
     metrics.findings = sum(len(h["vulnerabilities"]) for h in data)
     metrics.hosts_pushed = len(data)
     metrics.hosts_clean = sum(1 for h in data if not h["vulnerabilities"])
+
+    # The merged set is still built and counted while VR can't take it, so the
+    # metrics say what the push will carry once it can.
+    if metrics.vr_state == "pending":
+        logger.info("Skipping the VR push until the transformer is accepted in the PE console.")
+        return 0
+    if metrics.vr_state not in VR_PUSHABLE:
+        logger.error(f"Skipping the VR push: registration found the transformer in state {metrics.vr_state}.")
+        return 1
+
     logger.info(f"Pushing {metrics.findings} finding(s) across {len(data)} host(s), "
                 f"{metrics.hosts_clean} of them clean")
-
-    # The findings API takes the whole findings file; VR takes the part its schema holds.
-    # Independent on purpose: a findings API that is down, or not switched on,
-    # must not stop the VR push, which is the one with a console behind it.
-    #
-    # One cassette, one run, one sweep. Not the merged set: the findings API keys
-    # everything by cassette so a stale vuls cassette cannot hide behind a fresh
-    # The openvas cassette, and merging on the way in would throw that away. The merge
-    # above exists for VR, which holds one transformer's data per node.
-    findings_params = _findings_params(pe_params, defaults)
-    if findings_params:
-        # Each cassette as the scanner wrote it, composed or not: composition
-        # is for VR. The findings API takes raw findings per source and stores no
-        # merged-record fields.
-        accepted = [push_findings(findings_params, document) for document in documents]
-        metrics.findings_api_hosts = sum(a for a in accepted if a is not None) if accepted else None
 
     # PE answers a repeat of a scan date it already holds with 409 before it
     # has read the body, and closes the connection. Under about 200 KB the

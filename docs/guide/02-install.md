@@ -57,7 +57,10 @@ On this first run the log also has:
 
 ```text
 Registration successful. Transformer is Pending Activation.
+Skipping the VR push until the transformer is accepted in the PE console.
 ```
+
+The run still exits 0 and writes `metrics_file`, with `soundwave_vr_transformer_state{state="pending"} 1`.
 
 ## If it fails
 

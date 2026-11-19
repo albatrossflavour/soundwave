@@ -26,6 +26,8 @@ import time
 logger = logging.getLogger("transformer")
 
 PREFIX = "soundwave"
+# What registering with VR can find. Every run reports all of them, 1 on the one it found.
+VR_STATES = ("active", "pending", "conflict", "error", "unchecked")
 _LAST_SUCCESS = f"{PREFIX}_last_success_timestamp_seconds"
 _LAST_SUCCESS_RE = re.compile(rf"^{_LAST_SUCCESS} (\S+)$", re.MULTILINE)
 
@@ -43,6 +45,8 @@ class RunMetrics:
         self.hosts_pushed = None
         self.hosts_clean = None
         self.findings_api_hosts = None
+        # What registration found: one of VR_STATES, or None when the run never got that far.
+        self.vr_state = None
         # {cassette: {generated_at, scan_end, findings, hosts{status: n}, dropped{filter: n}, unmapped}}
         self.cassettes = None
         # {(cassette, certname): epoch}
@@ -78,14 +82,25 @@ class RunMetrics:
         metric(f"{PREFIX}_last_run_timestamp_seconds",
                "When Soundwave last finished a run, whatever happened.", [({}, now)])
         metric(f"{PREFIX}_last_run_success",
-               "1 when the last run pushed to PE or PE already held that scan, 0 when it failed.",
+               "1 when the last run pushed to PE, PE already held that scan, or the push was skipped "
+               "because the transformer is pending acceptance in the PE console. 0 when it failed. "
+               "The findings API push doesn't count; see soundwave_findings_api_hosts_accepted.",
                [({}, 1 if success else 0)])
         metric(_LAST_SUCCESS, "When a run last succeeded.",
                [({}, int(last_success) if last_success is not None else None)])
+        if self.vr_state is not None:
+            metric(f"{PREFIX}_vr_transformer_state",
+                   "What registration with PE Vulnerability Remediation found, 1 on the current state. "
+                   "pending means nobody has accepted the transformer in the PE console yet, so the VR "
+                   "push is skipped while the findings API push and these metrics carry on. conflict is "
+                   "another transformer holding VR, error a registration that failed, unchecked "
+                   "registration turned off.",
+                   [({"state": state}, 1 if state == self.vr_state else 0) for state in VR_STATES])
         metric(f"{PREFIX}_push_status_code", "HTTP status PE gave the last push.", [({}, self.push_status)])
-        metric(f"{PREFIX}_findings", "Findings in the last push, across every cassette.",
+        metric(f"{PREFIX}_findings",
+               "Findings in the merged set for VR, across every cassette. Counted while the push is skipped too.",
                [({}, self.findings)])
-        metric(f"{PREFIX}_hosts_pushed", "Hosts in the last push.", [({}, self.hosts_pushed)])
+        metric(f"{PREFIX}_hosts_pushed", "Hosts in the merged set for VR.", [({}, self.hosts_pushed)])
         metric(f"{PREFIX}_findings_api_hosts_accepted",
                "Hosts the findings API accepted on the last run. Absent when the API is not "
                "configured; below the pushed host count when some hosts were refused and swept.",

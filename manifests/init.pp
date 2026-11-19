@@ -131,8 +131,9 @@
 # @param findings_api_host
 #   Host running a findings API, for the author's own consumer, whose API isn't
 #   published. Unset disables the push, which is the default. Set, Soundwave
-#   sends each cassette there unmerged as well as pushing to VR. It
-#   authenticates with this node's Puppet agent certificate.
+#   sends each cassette there unmerged as well as pushing to VR, including
+#   while the transformer is still pending in PE. It authenticates with this
+#   node's Puppet agent certificate.
 # @param findings_api_port
 #   Port for that API.
 # @param correlate
@@ -171,9 +172,10 @@
 #   `compose_file`.
 # @param metrics_file
 #   If set, each run writes a node_exporter textfile here: when it ran, whether
-#   it worked, PE's HTTP status, and per cassette its age, findings, host
-#   states and what its filters dropped. Point it into the textfile collector's
-#   directory.
+#   it worked, PE's HTTP status, whether VR has accepted the transformer, and
+#   per cassette its age, findings, host states and what its filters dropped.
+#   It's written while the transformer is still pending too. Point it into the
+#   textfile collector's directory.
 # @param post_body_filepath
 #   If set, the JSON body of the PE request is written here for debugging.
 # @param transformer_name
