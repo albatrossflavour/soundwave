@@ -1,10 +1,16 @@
 # Changelog
 
+## 0.2.3
+
+- A registration whose last answer is 201 (VR has just created the transformer) is `pending`, where 0.2.2 called it `error` and failed the run. That's the answer with `max_retries` at 1. Any answer Soundwave doesn't recognise, a rejected transformer included, is still `error`
+- A cassette that breaks the cassette metrics no longer stops the findings API push, registration, or the VR push. The run still fails, and no cassette metrics are written for it, since half a set reads as real numbers
+- `soundwave_last_success_timestamp_seconds` no longer advances on a pending run, so its age is how long VR has gone without the current scan. `soundwave_last_run_success` still counts a pending run as 1
+
 ## 0.2.2
 
 - A transformer still pending in PE no longer stops the run. Soundwave skips the VR push and logs why, and still writes the cassette metrics and pushes to the findings API. In 0.2.1 the run ended at registration, so an unaccepted transformer looked like missing cassettes
 - `metrics_file` gains `soundwave_vr_transformer_state`, 1 on what registration found: `active`, `pending`, `conflict`, `error`, or `unchecked`. A pending run still counts as a success in `soundwave_last_run_success`
-- A findings API push that fails or raises, or a registration that raises, no longer stops the other outputs
+- A findings API push or a registration that raises no longer stops the other outputs. A findings API push that returned a failure never did
 
 ## 0.2.1
 
