@@ -14,7 +14,8 @@ blind-spot report wants anyway.
 
 Everything but the run and success lines is only written when the run got far
 enough to know it, so a failed run doesn't publish zeros that read as "no
-findings". The last success time is carried over from the previous file.
+findings". The last success time is carried over from the previous file, by a
+failed run and by one that skipped the VR push while the transformer was pending.
 """
 
 import logging
@@ -66,7 +67,11 @@ class RunMetrics:
 
     def render(self, success):
         now = int(self.clock())
-        last_success = now if success else self._previous_success()
+        # A pending run succeeds but puts nothing in VR, so it carries the last
+        # success over rather than advancing it. That keeps this "when VR last
+        # held the current scan", which a "no push for N days" rule needs.
+        advanced = success and self.vr_state != "pending"
+        last_success = now if advanced else self._previous_success()
         lines = []
 
         def metric(name, help_text, samples):
@@ -86,7 +91,10 @@ class RunMetrics:
                "because the transformer is pending acceptance in the PE console. 0 when it failed. "
                "The findings API push doesn't count; see soundwave_findings_api_hosts_accepted.",
                [({}, 1 if success else 0)])
-        metric(_LAST_SUCCESS, "When a run last succeeded.",
+        metric(_LAST_SUCCESS,
+               "When a run last pushed to PE or found PE already held its scan. A pending run "
+               "doesn't advance it, though it counts in soundwave_last_run_success, so its age is "
+               "how long VR has gone without the current scan. Absent until the first such run.",
                [({}, int(last_success) if last_success is not None else None)])
         if self.vr_state is not None:
             metric(f"{PREFIX}_vr_transformer_state",

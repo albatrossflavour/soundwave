@@ -160,7 +160,8 @@ def _cassette(name):
     }
 
 
-def _independent_run(monkeypatch, tmp_path, registration, findings_api=lambda p, d: 1, vr_status=201):
+def _independent_run(monkeypatch, tmp_path, registration, findings_api=lambda p, d: 1, vr_status=201,
+                     register="1", previous_success=None):
     pushed = {"findings_api": [], "vr": []}
     monkeypatch.setattr(SW.time, "sleep", lambda s: None)
     monkeypatch.setattr(SW.F, "read_cassettes", lambda d: [_cassette("openvas"), _cassette("vuls")])
@@ -181,8 +182,11 @@ def _independent_run(monkeypatch, tmp_path, registration, findings_api=lambda p,
     monkeypatch.setattr(SW, "post_transformer_res_to_pe",
                         lambda p, d, s: pushed["vr"].append(s) or {"status": vr_status, "data": ""})
     defaults = {"cassette_dir": str(tmp_path / "cassettes"), "findings_api_host": "findings.example.com"}
-    metrics = RunMetrics(str(tmp_path / "soundwave.prom"), clock=lambda: 2_000_000_000)
-    code = SW.run({"register": "1", "max_retries": "1"}, defaults, metrics)
+    prom = tmp_path / "soundwave.prom"
+    if previous_success is not None:
+        prom.write_text(f"soundwave_last_success_timestamp_seconds {previous_success}\n")
+    metrics = RunMetrics(str(prom), clock=lambda: 2_000_000_000)
+    code = SW.run({"register": register, "max_retries": "1"}, defaults, metrics)
     return code, pushed, _metric_lines(metrics.render(code == 0))
 
 
@@ -270,3 +274,63 @@ def test_registration_still_happens_with_no_cassettes(monkeypatch, tmp_path):
     assert SW.run({"register": "1", "max_retries": "1"}, {"cassette_dir": str(tmp_path)}, metrics) == 1
     assert registered == [1]
     assert metrics.vr_state == "pending"
+
+
+# 0.2.3: every registration answer maps to a named state on purpose.
+
+def test_a_final_201_is_pending(monkeypatch, tmp_path):
+    """VR answers 201 when it has just created the transformer, pending acceptance.
+    With max_retries=1 that is the last answer the loop sees, and 0.2.2 called it an error."""
+    code, pushed, lines = _independent_run(monkeypatch, tmp_path, {"status": 201, "data": ""})
+    assert code == 0
+    assert pushed["vr"] == []
+    assert pushed["findings_api"] == ["openvas", "vuls"]
+    assert 'soundwave_vr_transformer_state{state="pending"} 1' in lines
+
+
+@pytest.mark.parametrize("answer", [{"status": 403, "data": "rejected"}, {"status": None, "data": "no response"},
+                                    {"status": 409, "data": {"message": "something new"}}])
+def test_any_other_registration_answer_is_an_error(monkeypatch, tmp_path, answer):
+    code, pushed, lines = _independent_run(monkeypatch, tmp_path, answer)
+    assert code == 1
+    assert pushed["vr"] == []
+    assert pushed["findings_api"] == ["openvas", "vuls"]
+    assert 'soundwave_vr_transformer_state{state="error"} 1' in lines
+
+
+def test_registration_turned_off_is_unchecked_and_still_pushes(monkeypatch, tmp_path):
+    code, pushed, lines = _independent_run(monkeypatch, tmp_path, AssertionError("must not register"),
+                                           register="0")
+    assert code == 0
+    assert pushed["vr"] == [1_700_000_000]
+    assert 'soundwave_vr_transformer_state{state="unchecked"} 1' in lines
+    assert 'soundwave_vr_transformer_state{state="active"} 0' in lines
+
+
+def test_a_cassette_that_breaks_the_metrics_stops_nothing_else(monkeypatch, tmp_path, caplog):
+    def broken(documents, metrics):
+        metrics.cassettes = {"openvas": {}}
+        raise KeyError("scan_end")
+    monkeypatch.setattr(SW, "record_cassettes", broken)
+    code, pushed, lines = _independent_run(monkeypatch, tmp_path, ACTIVE)
+    assert code == 1
+    assert pushed["findings_api"] == ["openvas", "vuls"]
+    assert pushed["vr"] == [1_700_000_000]
+    assert 'soundwave_vr_transformer_state{state="active"} 1' in lines
+    # Half-recorded cassettes would read as real numbers, so none are written.
+    assert not any(line.startswith("soundwave_cassette_") for line in lines)
+    assert "Could not record cassette metrics" in caplog.text
+
+
+def test_a_pending_run_does_not_advance_last_success(monkeypatch, tmp_path):
+    """last_success is when VR last held the current scan. A pending run hasn't put
+    anything in VR, so it mustn't silence a "no push for N days" rule built on it."""
+    code, _, lines = _independent_run(monkeypatch, tmp_path, PENDING, previous_success=1_000)
+    assert code == 0
+    assert "soundwave_last_run_success 1" in lines
+    assert "soundwave_last_success_timestamp_seconds 1000" in lines
+
+
+def test_an_active_run_advances_last_success(monkeypatch, tmp_path):
+    _, _, lines = _independent_run(monkeypatch, tmp_path, ACTIVE, previous_success=1_000)
+    assert "soundwave_last_success_timestamp_seconds 2000000000" in lines

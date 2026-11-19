@@ -85,7 +85,9 @@ def register(pe_params):
     except Exception:
         logger.exception("Registration failed")
         return "error"
-    if res["status"] == TRANSFORMER_STATUS_PENDING:
+    # 201 is VR creating the transformer, pending acceptance. The loop above
+    # retries it into a 202, but with max_retries=1 a 201 is the last answer.
+    if res["status"] in (TRANSFORMER_STATUS_CREATED, TRANSFORMER_STATUS_PENDING):
         logger.info("Registration successful. Transformer is Pending Activation.")
         return "pending"
     if res["status"] == TRANSFORMER_STATUS_EXISTS:
@@ -95,6 +97,8 @@ def register(pe_params):
         if res["data"]["message"] == TRANSFORMER_MESSAGE_OTHER:
             logger.error("Transformer with different ID is in Active or Pending State.")
             return "conflict"
+    # Anything else, a rejected transformer included, is an error: loud, and
+    # never mistaken for a state the VR push can go ahead in.
     logger.error(f"Registration failed. {res}")
     return "error"
 
@@ -270,10 +274,11 @@ def run(pe_params, defaults, metrics):
     """
     cassette_dir = defaults.get("cassette_dir", "")
     documents = F.read_cassettes(cassette_dir)
+    recorded = True
     if documents:
         logger.info(f"Merging {len(documents)} cassette(s): "
                     f"{', '.join(sorted((d.get('cassette') or {}).get('name', '?') for d in documents))}")
-        record_cassettes(documents, metrics)
+        recorded = _record_cassettes_safely(documents, metrics)
         push_to_findings_api(pe_params, defaults, documents, metrics)
 
     # Registration runs even with no cassettes, so a fresh install's
@@ -284,6 +289,30 @@ def run(pe_params, defaults, metrics):
         logger.error(f"No readable cassettes in {cassette_dir}; nothing to push")
         return 1
 
+    code = push_to_vr(pe_params, defaults, documents, metrics)
+    # Metrics that couldn't be recorded fail the run, but only once the VR
+    # push has had its turn.
+    return code if recorded else 1
+
+
+def _record_cassettes_safely(documents, metrics):
+    """record_cassettes, isolated so a malformed cassette can't stop the pushes or registration.
+
+    Returns False when it failed. What it had recorded is thrown away, since half a
+    set of cassette metrics reads as real numbers.
+    """
+    try:
+        record_cassettes(documents, metrics)
+        return True
+    except Exception:
+        logger.exception("Could not record cassette metrics")
+        metrics.cassettes = None
+        metrics.host_scan_ends = None
+        return False
+
+
+def push_to_vr(pe_params, defaults, documents, metrics):
+    """Merge the cassettes and push them to VR, if metrics.vr_state allows. Returns the exit code."""
     report_correlations(documents, defaults, metrics)
 
     hosts, checks, findings = F.merge(documents)

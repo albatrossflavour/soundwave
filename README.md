@@ -15,7 +15,7 @@ Each cassette reads its scanner on the node it runs on, so Soundwave goes on the
 
 ## How it works
 
-A nightly systemd timer runs each cassette that's turned on, then registers with PE if it hasn't already, merges the cassette files, and posts the result to VR. A cassette that fails leaves its previous file in place and the push still goes, so one scanner's problem doesn't hold back the others. `metrics_file` reports each cassette's age, so a stale one shows up, and whether VR has accepted the transformer. Until it has, the VR push is skipped and the metrics are written anyway. The `run_soundwave` Bolt task starts a run on demand.
+A nightly systemd timer runs each cassette that's turned on, records the cassette metrics, and pushes each cassette to the findings API if `findings_api_host` is set. It then registers with PE if it hasn't already, merges the cassette files, and posts the result to VR. A cassette that fails leaves its previous file in place and the push still goes, so one scanner's problem doesn't hold back the others. `metrics_file` reports each cassette's age, so a stale one shows up, and whether VR has accepted the transformer. Until it has, the VR push is skipped and the metrics are written anyway. The `run_soundwave` Bolt task starts a run on demand.
 
 ## Requirements
 
