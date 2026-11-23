@@ -7,6 +7,7 @@
 ### Classes
 
 * [`soundwave`](#soundwave): Soundwave, the vulnerability transformer, and its cassettes.
+* [`soundwave::rbac_user`](#soundwave--rbac_user): Soundwave's PE user and role, owned by the primary.
 
 ### Tasks
 
@@ -48,6 +49,13 @@ include soundwave
 The following parameters are available in the `soundwave` class:
 
 * [`pe_token`](#-soundwave--pe_token)
+* [`token_password`](#-soundwave--token_password)
+* [`token_login`](#-soundwave--token_login)
+* [`token_file`](#-soundwave--token_file)
+* [`token_lifetime`](#-soundwave--token_lifetime)
+* [`token_renew_after`](#-soundwave--token_renew_after)
+* [`token_server`](#-soundwave--token_server)
+* [`token_port`](#-soundwave--token_port)
 * [`pe_host`](#-soundwave--pe_host)
 * [`gmp_password`](#-soundwave--gmp_password)
 * [`gmp_username`](#-soundwave--gmp_username)
@@ -105,9 +113,75 @@ The following parameters are available in the `soundwave` class:
 
 ##### <a name="-soundwave--pe_token"></a>`pe_token`
 
-Data type: `Sensitive[String[1]]`
+Data type: `Optional[Sensitive[String[1]]]`
 
-PE authentication token with permission to push to the VRS service.
+PE authentication token with permission to push to the VRS service. Set
+this or token_password, not both. A token given here sits in the catalogue
+until someone replaces it by hand; token_password avoids both.
+
+Default value: `undef`
+
+##### <a name="-soundwave--token_password"></a>`token_password`
+
+Data type: `Optional[Variant[Sensitive[String[1]], Deferred]]`
+
+Password of the PE user soundwave::rbac_user makes on the primary. Set, this
+node mints its own token with rbac_token, renews it after
+token_renew_after, and keeps it in token_file, which Soundwave reads at the
+start of every run. Pass a Deferred such as node_encrypt::secret's: a
+Sensitive class parameter is recorded in the catalogue in plaintext. Needs
+conductor-rbac in the Puppetfile.
+
+Default value: `undef`
+
+##### <a name="-soundwave--token_login"></a>`token_login`
+
+Data type: `String[1]`
+
+That user's login.
+
+Default value: `'soundwave'`
+
+##### <a name="-soundwave--token_file"></a>`token_file`
+
+Data type: `Stdlib::Absolutepath`
+
+Where the token is kept, root only.
+
+Default value: `'/opt/puppetlabs/soundwave/python/pe.token'`
+
+##### <a name="-soundwave--token_lifetime"></a>`token_lifetime`
+
+Data type: `String[1]`
+
+Lifetime of each token minted, in PE's units (`30d`, `12h`).
+
+Default value: `'30d'`
+
+##### <a name="-soundwave--token_renew_after"></a>`token_renew_after`
+
+Data type: `String[1]`
+
+Age after which the token is replaced on the next Puppet run. Shorter than
+token_lifetime, by more than the agent's run interval.
+
+Default value: `'21d'`
+
+##### <a name="-soundwave--token_server"></a>`token_server`
+
+Data type: `Optional[Stdlib::Host]`
+
+Console host to mint the token from. Defaults to pe_host, the primary.
+
+Default value: `undef`
+
+##### <a name="-soundwave--token_port"></a>`token_port`
+
+Data type: `Optional[Stdlib::Port]`
+
+Console port. Defaults to rbac_token's own, 4433.
+
+Default value: `undef`
 
 ##### <a name="-soundwave--pe_host"></a>`pe_host`
 
@@ -616,6 +690,89 @@ Data type: `String[1]`
 Description registered with PE.
 
 Default value: `'Soundwave: merged scanner findings'`
+
+### <a name="soundwave--rbac_user"></a>`soundwave::rbac_user`
+
+Declare this on the PE primary, where the RBAC types can reach the console
+with the primary's own certificate. It makes a role that can register a
+transformer and push to Vulnerability Remediation and nothing else, and a
+user holding only that role. Give soundwave's own node the same password as
+`soundwave::token_password` and it mints and renews its own short-lived
+token, so no token is ever in a catalogue.
+
+The RBAC types come from conductor-rbac (albatrossflavour's fork, whose
+rbac_token renews), which is not a metadata dependency: add it to the
+Puppetfile as `rbac` before declaring this class.
+
+#### Examples
+
+##### On the primary, with the password from node_encrypt
+
+```puppet
+class { 'soundwave::rbac_user':
+  password => node_encrypt::secret(lookup('soundwave::rbac_password')),
+}
+```
+
+#### Parameters
+
+The following parameters are available in the `soundwave::rbac_user` class:
+
+* [`password`](#-soundwave--rbac_user--password)
+* [`login`](#-soundwave--rbac_user--login)
+* [`role`](#-soundwave--rbac_user--role)
+* [`email`](#-soundwave--rbac_user--email)
+* [`display_name`](#-soundwave--rbac_user--display_name)
+* [`check_password`](#-soundwave--rbac_user--check_password)
+
+##### <a name="-soundwave--rbac_user--password"></a>`password`
+
+Data type: `Variant[Sensitive[String[1]], Deferred]`
+
+The user's password. A Sensitive class parameter is still written into the
+catalogue in plaintext, since class parameters are recorded there, so pass
+the Deferred that `node_encrypt::secret()` returns and the catalogue carries
+only ciphertext the primary can open.
+
+##### <a name="-soundwave--rbac_user--login"></a>`login`
+
+Data type: `String[1]`
+
+The user's login.
+
+Default value: `'soundwave'`
+
+##### <a name="-soundwave--rbac_user--role"></a>`role`
+
+Data type: `String[1]`
+
+The role's display name.
+
+Default value: `'Soundwave'`
+
+##### <a name="-soundwave--rbac_user--email"></a>`email`
+
+Data type: `String[1]`
+
+The user's email. The RBAC API insists on one.
+
+Default value: `"soundwave@${facts['networking']['domain']}"`
+
+##### <a name="-soundwave--rbac_user--display_name"></a>`display_name`
+
+Data type: `String[1]`
+
+The user's display name.
+
+Default value: `'Soundwave'`
+
+##### <a name="-soundwave--rbac_user--check_password"></a>`check_password`
+
+Data type: `Boolean`
+
+Log in as the user each run and reset the password if it has drifted.
+
+Default value: `true`
 
 ## Tasks
 

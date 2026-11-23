@@ -22,3 +22,10 @@ fixtures:
     yumrepo_core:
       repo: "puppetlabs/yumrepo_core"
       ref: "2.1.0"
+  repositories:
+    # Not a metadata dependency: only soundwave::rbac_user and the main class's
+    # token_password need it, and a site that uses either adds it to its
+    # Puppetfile. The fork is the one whose rbac_token renews.
+    rbac:
+      repo: "git@github.com:albatrossflavour/conductor-rbac.git"
+      branch: "modernise"

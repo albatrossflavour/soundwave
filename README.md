@@ -21,10 +21,46 @@ With `threat_intel` on, every check is also marked with CISA KEV and FIRST EPSS,
 
 ## Requirements
 
-- Puppet Enterprise Advanced with [VR enabled](https://help.puppet.com/pe/current/topics/advanced-patching.htm), and a PE RBAC token that can push to it
+- Puppet Enterprise Advanced with [VR enabled](https://help.puppet.com/pe/current/topics/advanced-patching.htm), and a PE RBAC token that can push to it, or [a PE user the primary manages](#pe-access) so the node mints its own
 - TCP 8146 open from the Soundwave node to the PE primary, where VR listens
 - Puppet 8 or 9 and an agent certificate. Secrets are encrypted to it with `node_encrypt`, and the push authenticates with it
 - Python 3.9 or later from the OS, on Ubuntu 22.04, 24.04, or 26.04, Debian 11 or 12, Red Hat 8 or 9, or AlmaLinux 9 or 10
+
+## PE access
+
+Soundwave authenticates to VR with a PE RBAC token. There are two ways to give it one, and the class takes exactly one of them.
+
+`pe_token` is a token made by hand and passed in, as [the install guide](https://github.com/albatrossflavour/soundwave/blob/main/docs/guide/01-pe.md) does. It works anywhere, but it sits in the catalogue and someone has to replace it before it expires.
+
+`token_password` lets the primary own Soundwave's PE user and the Soundwave node mint its own token. The primary declares `soundwave::rbac_user`, which makes a `Soundwave` role that can register a transformer and push to VR and nothing else, and a `soundwave` user holding only that role. The Soundwave node is given the same password. Each Puppet run there, `rbac_token` checks the token in `token_file` and mints a new one when it is missing, no longer valid, or older than `token_renew_after`, then revokes the old one. Soundwave reads the file at the start of every run, so a renewed token is picked up with no restart, and no token is ever in a catalogue.
+
+Both need the RBAC types from [conductor-rbac](https://github.com/albatrossflavour/conductor-rbac), the fork whose `rbac_token` renews. It is not a dependency in `metadata.json`, since only this setup needs it, so add it to the Puppetfile:
+
+```ruby
+mod 'rbac',
+  git:    'git@github.com:albatrossflavour/conductor-rbac.git',
+  branch: 'modernise'
+```
+
+Pass the password through `node_encrypt::secret`, on both sides. A `Sensitive` class parameter is still written into the catalogue in plaintext, because class parameters are recorded there. `node_encrypt::secret` encrypts it to the node the catalogue is for, so the catalogue carries ciphertext only that node can open.
+
+On the primary:
+
+```puppet
+class { 'soundwave::rbac_user':
+  password => node_encrypt::secret(lookup('soundwave::rbac_password')),
+}
+```
+
+On the Soundwave node:
+
+```puppet
+class { 'soundwave':
+  token_password => node_encrypt::secret(lookup('soundwave::rbac_password')),
+}
+```
+
+The node mints its token from `pe_host`, the PE primary, on port 4433. Set `token_server` and `token_port` if the console is somewhere else. Tokens last `token_lifetime` (30 days) and are replaced after `token_renew_after` (21 days), so the agent has a week of runs to renew one before it expires.
 
 ## Getting started
 

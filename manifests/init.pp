@@ -20,7 +20,29 @@
 # ID, fqdn_uuid of the node's certname, so VR's history carries on unbroken.
 #
 # @param pe_token
-#   PE authentication token with permission to push to the VRS service.
+#   PE authentication token with permission to push to the VRS service. Set
+#   this or token_password, not both. A token given here sits in the catalogue
+#   until someone replaces it by hand; token_password avoids both.
+# @param token_password
+#   Password of the PE user soundwave::rbac_user makes on the primary. Set, this
+#   node mints its own token with rbac_token, renews it after
+#   token_renew_after, and keeps it in token_file, which Soundwave reads at the
+#   start of every run. Pass a Deferred such as node_encrypt::secret's: a
+#   Sensitive class parameter is recorded in the catalogue in plaintext. Needs
+#   conductor-rbac in the Puppetfile.
+# @param token_login
+#   That user's login.
+# @param token_file
+#   Where the token is kept, root only.
+# @param token_lifetime
+#   Lifetime of each token minted, in PE's units (`30d`, `12h`).
+# @param token_renew_after
+#   Age after which the token is replaced on the next Puppet run. Shorter than
+#   token_lifetime, by more than the agent's run interval.
+# @param token_server
+#   Console host to mint the token from. Defaults to pe_host, the primary.
+# @param token_port
+#   Console port. Defaults to rbac_token's own, 4433.
 # @param pe_host
 #   PE primary to push to. Defaults to the Puppet server that compiled this
 #   catalogue, so it only needs setting when that isn't the PE primary, or when
@@ -210,7 +232,14 @@
 #   include soundwave
 #
 class soundwave (
-  Sensitive[String[1]] $pe_token,
+  Optional[Sensitive[String[1]]] $pe_token = undef,
+  Optional[Variant[Sensitive[String[1]], Deferred]] $token_password = undef,
+  String[1] $token_login              = 'soundwave',
+  Stdlib::Absolutepath $token_file    = '/opt/puppetlabs/soundwave/python/pe.token',
+  String[1] $token_lifetime           = '30d',
+  String[1] $token_renew_after        = '21d',
+  Optional[Stdlib::Host] $token_server = undef,
+  Optional[Stdlib::Port] $token_port  = undef,
   Optional[String[1]] $gmp_username   = undef,
   String[1] $compose_file             = '/opt/greenbone-community-container/compose.yaml',
   String[1] $gmp_service              = 'gvm-tools',
@@ -269,6 +298,12 @@ class soundwave (
   $_pe_host = pick_default($pe_host, $server_facts['servername'])
   if $_pe_host =~ Undef or $_pe_host == '' {
     fail('soundwave: no Puppet server compiled this catalogue, so set soundwave::pe_host to the PE primary')
+  }
+  if ($pe_token =~ Undef) == ($token_password =~ Undef) {
+    fail('soundwave: set exactly one of soundwave::pe_token and soundwave::token_password')
+  }
+  if $token_password =~ NotUndef and !defined('rbac_token') {
+    fail('soundwave: token_password needs the rbac_token type from conductor-rbac (git@github.com:albatrossflavour/conductor-rbac.git), so add it to the Puppetfile as rbac')
   }
   # The openvas module creates this read-only user, so it is set once, there.
   $_gmp_username = pick($gmp_username, lookup('openvas::scan_observer_user', Optional[String[1]], 'first', undef), 'admin')
@@ -464,6 +499,25 @@ class soundwave (
     require         => [File[$install_path], File[$cassette_dir]],
   }
 
+  # The token is minted here and renewed in place, and Soundwave reads the file
+  # each run, so a renewal needs no restart and the token never reaches the
+  # catalogue.
+  if $token_password =~ NotUndef {
+    rbac_token { "soundwave-${trusted['certname']}":
+      ensure      => present,
+      login       => $token_login,
+      password    => $token_password,
+      lifetime    => $token_lifetime,
+      renew_after => $token_renew_after,
+      description => "Soundwave on ${trusted['certname']}",
+      token_file  => $token_file,
+      server      => pick($token_server, $_pe_host),
+      port        => $token_port,
+      require     => File["${install_path}/python"],
+      before      => Systemd::Timer['soundwave.timer'],
+    }
+  }
+
   # Both files hold secrets (the PE token, the GMP credentials, any scanner API
   # keys), so root only.
   file { "${install_path}/python/config.ini":
@@ -477,6 +531,7 @@ class soundwave (
         'python_path'             => $python_path,
         'cert_name'               => $trusted['certname'],
         'pe_token'                => $pe_token,
+        'token_file'              => if $token_password =~ NotUndef { $token_file },
         'pe_host'                 => $_pe_host,
         'transformer_id'          => fqdn_uuid($trusted['certname']),
         'transformer_name'        => $transformer_name,
