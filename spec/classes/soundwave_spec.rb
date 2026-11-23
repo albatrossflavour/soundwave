@@ -50,6 +50,7 @@ describe 'soundwave' do
           is_expected.to contain_file("#{dir}/python/config.ini").with(owner: 'root', group: 'root', mode: '0600')
           expect(config_ini).to include("host = pe.example.com\n")
           expect(config_ini).to include("token = TOKEN\n")
+          expect(config_ini).not_to include('token_file')
         end
 
         it 'leaves the optional settings empty, which the Python reads as unset' do
@@ -301,6 +302,78 @@ describe 'soundwave' do
         it 'pushes to the server that compiled the catalogue' do
           expect(config_ini).to match(%r{^host = \S+$})
           expect(config_ini).not_to include('host = pe.example.com')
+        end
+      end
+
+      context 'with neither pe_token nor token_password' do
+        let(:params) { required.reject { |k, _| k == 'pe_token' } }
+
+        it { is_expected.to compile.and_raise_error(%r{set exactly one of soundwave::pe_token and soundwave::token_password}) }
+      end
+
+      context 'with both pe_token and token_password' do
+        let(:params) { required.merge('token_password' => sensitive('pw')) }
+
+        it { is_expected.to compile.and_raise_error(%r{set exactly one of soundwave::pe_token and soundwave::token_password}) }
+      end
+
+      context 'with token_password, so the node mints its own token' do
+        # What node_encrypt::secret returns: ciphertext only this node can open.
+        let(:params) do
+          required.reject { |k, _| k == 'pe_token' }.merge('token_password' => RSpec::Puppet::RawString.new("Deferred('node_decrypt', ['CIPHERTEXT'])"))
+        end
+        let(:node) { 'scanner.example.com' }
+        let(:token) { catalogue.resource('rbac_token', 'soundwave-scanner.example.com') }
+
+        # rspec-puppet resolves Deferred values as an agent would, which needs
+        # the node's key. Unresolved is the catalogue as the primary sends it.
+        before(:each) { allow(Puppet::Pops::Evaluator::DeferredResolver).to receive(:resolve_and_replace) }
+
+        it { is_expected.to compile.with_all_deps }
+
+        it 'renews a 30-day token after 21 days into a root-only file, from the PE primary, before the service can run' do
+          is_expected.to contain_rbac_token('soundwave-scanner.example.com').with(
+            ensure: 'present', login: 'soundwave', lifetime: '30d', renew_after: '21d',
+            token_file: "#{dir}/python/pe.token", server: 'pe.example.com', port: nil
+          ).that_requires("File[#{dir}/python]").that_comes_before('Systemd::Timer[soundwave.timer]')
+        end
+
+        it 'passes the password through unresolved, so the catalogue carries only ciphertext' do
+          expect(Puppet::Pops::Types::TypeFactory.deferred.instance?(token[:password])).to be(true)
+          expect([token[:password].name, token[:password].arguments]).to eq(['node_decrypt', ['CIPHERTEXT']])
+        end
+
+        it 'points Soundwave at the token file and writes no token' do
+          expect(config_ini).to include("token_file = #{dir}/python/pe.token\n")
+          expect(config_ini).not_to match(%r{^token = })
+        end
+
+        context 'with everything named' do
+          let(:params) do
+            required.reject { |k, _| k == 'pe_token' }.merge(
+              'token_password' => sensitive('pw'), 'token_login' => 'sw', 'token_file' => '/etc/soundwave.token',
+              'token_lifetime' => '7d', 'token_renew_after' => '5d', 'token_server' => 'console.example.com', 'token_port' => 443
+            )
+          end
+
+          it do
+            is_expected.to contain_rbac_token('soundwave-scanner.example.com').with(
+              login: 'sw', lifetime: '7d', renew_after: '5d', token_file: '/etc/soundwave.token', server: 'console.example.com', port: 443,
+            )
+          end
+
+          it { expect(config_ini).to include("token_file = /etc/soundwave.token\n") }
+        end
+
+        context 'without conductor-rbac' do
+          let(:params) { required.reject { |k, _| k == 'pe_token' }.merge('token_password' => sensitive('no-rbac')) }
+
+          before(:each) do
+            allow(Puppet::Pops::Evaluator::Runtime3ResourceSupport).to receive(:find_resource_type_or_class).and_call_original
+            allow(Puppet::Pops::Evaluator::Runtime3ResourceSupport).to receive(:find_resource_type_or_class).with(anything, 'rbac_token').and_return(nil)
+          end
+
+          it { is_expected.to compile.and_raise_error(%r{token_password needs the rbac_token type from conductor-rbac}) }
         end
       end
 

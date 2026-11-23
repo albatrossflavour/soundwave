@@ -2,7 +2,8 @@
 String[1] $sync_schedule,
 String[1] $python_path,
 String[1] $cert_name,
-Sensitive[String[1]] $pe_token,
+Optional[Sensitive[String[1]]] $pe_token,
+Optional[String[1]] $token_file,
 String[1] $pe_host,
 String[1] $transformer_id,
 String[1] $transformer_name,
@@ -64,7 +65,11 @@ findings_api_port = <%= $findings_api_port %>
 register = 1
 ca_cert = /etc/puppetlabs/puppet/ssl/certs/ca.pem
 cert_file = /etc/puppetlabs/puppet/ssl/certs/<%= $cert_name %>.pem
+<% if $token_file { -%>
+token_file = <%= $token_file %>
+<% } else { -%>
 token = <%= regsubst($pe_token.unwrap, '\n', ' ', 'MG') %>
+<% } -%>
 key_file = /etc/puppetlabs/puppet/ssl/private_keys/<%= $cert_name %>.pem
 transformer_id = <%= $transformer_id %>
 retry_interval = 10

@@ -33,6 +33,27 @@ def load_transformer_parameters(config_file=filepath, section=None):
     return transformer_params
 
 
+def load_pe_token(pe_params):
+    """Set pe_params["token"] from token_file when one is configured.
+
+    rbac_token renews the file in place between runs, so it is read at the start
+    of every run rather than once at install. Without token_file the token from
+    config.ini stands.
+    """
+    token_file = pe_params.get("token_file", "")
+    if not token_file:
+        return
+    try:
+        with open(token_file) as f:
+            token = f.read().strip()
+    except OSError as e:
+        raise RuntimeError(f"Cannot read the PE token from {token_file}: {e.strerror}. "
+                           "rbac_token writes it on the node's next Puppet run.") from e
+    if not token:
+        raise RuntimeError(f"The PE token file {token_file} is empty")
+    pe_params["token"] = token
+
+
 """
 Decrypt agent encrypted value
 

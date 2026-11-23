@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.4.0
+
+- `soundwave::rbac_user`, declared on the PE primary, makes a `Soundwave` role that can register a transformer and push to VR and nothing else, and a `soundwave` user holding only that role. It checks the user's password each run and resets it if it has drifted
+- `token_password` on the main class has the Soundwave node mint its own token with `rbac_token`, keep it in `token_file`, and renew it after `token_renew_after` (21 days, for a 30-day `token_lifetime`). Soundwave reads the file at the start of every run, so a renewed token needs no restart and no token is ever in a catalogue. See [PE access](https://github.com/albatrossflavour/soundwave/blob/main/README.md#pe-access)
+- `pe_token` is now optional, and works as before. Set it or `token_password`, not both
+- Both need [conductor-rbac](https://github.com/albatrossflavour/conductor-rbac) in the Puppetfile. It is not a metadata dependency, and the catalogue fails with a message naming it if either is used without it
+
 ## 0.3.0
 
 - `threat_intel` marks every check with CISA KEV and FIRST EPSS, matched on CVE, so a finding from a scanner that doesn't report KEV (Greenbone, Rapid7) can still be ordered worst first. `download` fetches both feeds each run and keeps the previous file if a download fails. `directory` reads files copied into `threat_intel_dir`, for a node with no internet access. `off` is the default

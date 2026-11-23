@@ -31,7 +31,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from lib import findings as F  # noqa: E402
 from lib import threat_intel  # noqa: E402
-from lib.config_helper import load_transformer_parameters  # noqa: E402
+from lib.config_helper import load_pe_token, load_transformer_parameters  # noqa: E402
 from lib.findings_api_client import push as push_findings  # noqa: E402
 from lib.metrics import RunMetrics  # noqa: E402
 from lib.pe_transformer_client import register_host, post_transformer_res_to_pe  # noqa: E402
@@ -282,6 +282,10 @@ def run(pe_params, defaults, metrics):
                     f"{', '.join(sorted((d.get('cassette') or {}).get('name', '?') for d in documents))}")
         recorded = _record_cassettes_safely(documents, metrics)
         push_to_findings_api(pe_params, defaults, documents, metrics)
+
+    # Only VR needs the token, so a missing one fails the run here, after the
+    # findings API push and the cassette metrics have had their turn.
+    load_pe_token(pe_params)
 
     # Registration runs even with no cassettes, so a fresh install's
     # transformer is waiting in the console by the time the first scan lands.
