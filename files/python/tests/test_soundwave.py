@@ -94,7 +94,7 @@ def _run_with(monkeypatch, tmp_path, held, status):
     monkeypatch.setattr(SW, "record_cassettes", lambda docs, m: None)
     monkeypatch.setattr(SW, "report_correlations", lambda docs, d, m: None)
     monkeypatch.setattr(SW.F, "merge", lambda docs: ({}, {}, []))
-    monkeypatch.setattr(SW.F, "to_vr", lambda h, c, f, m: ([{"certname": "node.lab", "vulnerabilities": []}], 1_700_000_000))
+    monkeypatch.setattr(SW.F, "to_vr", lambda h, c, f, m, **kw: ([{"certname": "node.lab", "vulnerabilities": []}], 1_700_000_000))
     monkeypatch.setattr(SW, "post_transformer_res_to_pe", lambda p, d, s: calls.append(s) or {"status": status, "data": ""})
     state = tmp_path / "pe-push-state.json"
     if held is not None:
@@ -166,7 +166,7 @@ def _independent_run(monkeypatch, tmp_path, registration, findings_api=lambda p,
     monkeypatch.setattr(SW.time, "sleep", lambda s: None)
     monkeypatch.setattr(SW.F, "read_cassettes", lambda d: [_cassette("openvas"), _cassette("vuls")])
     vr_data = [{"certname": "node.lab", "vulnerabilities": []}]
-    monkeypatch.setattr(SW.F, "to_vr", lambda h, c, f, m: (vr_data, 1_700_000_000))
+    monkeypatch.setattr(SW.F, "to_vr", lambda h, c, f, m, **kw: (vr_data, 1_700_000_000))
 
     def register_host(params):
         if isinstance(registration, Exception):

@@ -344,7 +344,8 @@ def push_to_vr(pe_params, defaults, documents, metrics):
         logger.info(f"composition: {stats['sets']} set(s) of {stats['findings']} finding(s) pushed to VR as one "
                     f"record each, {stats['cross_cassette_sets']} spanning cassettes, {stats['capped_sets']} "
                     f"left alone for exceeding {F.COMPOSE_MAX_FINDINGS} findings or {F.COMPOSE_MAX_CVES} CVEs")
-    data, scan_date = F.to_vr(hosts, checks, findings, int(defaults.get("min_confidence", 70)))
+    data, scan_date = F.to_vr(hosts, checks, findings, int(defaults.get("min_confidence", 70)),
+                              threat_note=bool(int(defaults.get("threat_intel_in_vr", 0))))
 
     metrics.findings = sum(len(h["vulnerabilities"]) for h in data)
     metrics.hosts_pushed = len(data)

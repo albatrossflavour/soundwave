@@ -749,7 +749,7 @@ def merge(documents):
     return hosts, checks, findings
 
 
-def to_vr(hosts, checks, findings, min_confidence=70):
+def to_vr(hosts, checks, findings, min_confidence=70, threat_note=False):
     """The merged set as PE Vulnerability Remediation wants it.
 
     Returns (host records, scan date epoch). A host that was scanned and has no
@@ -762,6 +762,10 @@ def to_vr(hosts, checks, findings, min_confidence=70):
     VR has nowhere to put a confidence, so a low-confidence finding there is
     indistinguishable from a certain one; the findings file keeps the whole
     tail for anything that can reason about it.
+
+    threat_note puts KEV and EPSS at the front of the summary, because VR has
+    no field for either and the summary is the first prose the console shows.
+    It changes what the console reads, so it is off unless asked for (R1).
 
     A finding whose confidence is null or absent is not filtered. The scale is
     Greenbone's QoD and not every scanner has one: Nessus offers only booleans
@@ -810,7 +814,7 @@ def to_vr(hosts, checks, findings, min_confidence=70):
             continue
         record["vulnerabilities"].append({
             "name": check.get("name", ""),
-            "summary": check.get("summary", "") or "No description available",
+            "summary": _summary(check, threat_note),
             "solution": _solution(check, finding),
             "severity": check.get("severity", "none"),
             "cvss_score": check.get("cvss_score", 0.0),
@@ -866,6 +870,26 @@ _FIX_TYPE_NOTE = {
         "accepting the risk or removing the software."
     ),
 }
+
+
+def _summary(check, threat_note):
+    """The summary, led by KEV and EPSS when asked for and when the check has them.
+
+    One line of plain sentences, as the fix type notes are, because the console
+    collapses newlines and the note runs straight into the vendor's text.
+    """
+    summary = check.get("summary", "") or "No description available"
+    if not threat_note:
+        return summary
+    notes = []
+    if check.get("kev"):
+        notes.append("Known exploited (CISA KEV).")
+    if check.get("epss") is not None:
+        note = f"EPSS {check['epss']:.2f}"
+        if check.get("epss_percentile") is not None:
+            note += f", {check['epss_percentile'] * 100:.1f}th percentile"
+        notes.append(note + ".")
+    return " ".join(notes + [summary])
 
 
 def _solution(check, finding):

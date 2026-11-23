@@ -140,6 +140,12 @@
 #   default, leaves checks as the scanners wrote them.
 # @param threat_intel_dir
 #   Where the two feed files live.
+# @param threat_intel_in_vr
+#   Lead each finding's summary in PE with what threat_intel found, for example
+#   `Known exploited (CISA KEV). EPSS 0.91, 99.8th percentile.` PE's schema has
+#   no field for either, so the summary is the only place it can show. It
+#   changes text the console already displays, so it's off by default, and it
+#   does nothing while threat_intel is `off` unless a scanner reports KEV itself.
 # @param kev_url
 #   Where `download` fetches the KEV catalogue from. Point it at an internal
 #   mirror if there is one.
@@ -247,6 +253,7 @@ class soundwave (
   Optional[String[1]] $correlation_exceptions        = undef,
   Enum['off', 'download', 'directory'] $threat_intel = 'off',
   Stdlib::Absolutepath $threat_intel_dir    = '/var/lib/soundwave/threat-intel',
+  Boolean $threat_intel_in_vr         = false,
   Stdlib::HTTPUrl $kev_url            = 'https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json',
   Stdlib::HTTPUrl $epss_url           = 'https://epss.empiricalsecurity.com/epss_scores-current.csv.gz',
   Optional[Stdlib::Host] $findings_api_host          = undef,
@@ -378,7 +385,7 @@ class soundwave (
   }
 
   # cassette_group lets whatever copies the feeds in write there.
-  if $threat_intel != 'off' and !($threat_intel_dir in ['/var/lib/soundwave', $cassette_dir] + $_export_dirs) {
+  if $threat_intel != 'off' and !($threat_intel_dir in (['/var/lib/soundwave', $cassette_dir] + $_export_dirs)) {
     file { $threat_intel_dir:
       ensure => directory,
       owner  => 'root',
@@ -491,6 +498,7 @@ class soundwave (
         'correlation_exceptions'  => $correlation_exceptions,
         'threat_intel'            => $threat_intel,
         'threat_intel_dir'        => $threat_intel_dir,
+        'threat_intel_in_vr'      => $threat_intel_in_vr,
         'kev_url'                 => $kev_url,
         'epss_url'                => $epss_url,
         'findings_api_host'       => $findings_api_host,

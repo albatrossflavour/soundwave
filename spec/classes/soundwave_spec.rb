@@ -193,6 +193,7 @@ describe 'soundwave' do
       context 'with threat intel off, the default' do
         it { is_expected.not_to contain_file('/var/lib/soundwave/threat-intel') }
         it { expect(config_ini).to include("threat_intel = off\n") }
+        it { expect(config_ini).to include("threat_intel_in_vr = 0\n") }
       end
 
       context 'with threat intel downloaded' do
@@ -212,6 +213,12 @@ describe 'soundwave' do
         let(:params) { required.merge('threat_intel' => 'directory', 'threat_intel_dir' => '/var/lib/soundwave/cassettes') }
 
         it { is_expected.to compile.with_all_deps }
+      end
+
+      context 'with threat intel shown in the PE summary' do
+        let(:params) { required.merge('threat_intel' => 'download', 'threat_intel_in_vr' => true) }
+
+        it { expect(config_ini).to include("threat_intel_in_vr = 1\n") }
       end
 
       context 'with an internal mirror whose URL carries a %' do

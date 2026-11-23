@@ -12,6 +12,24 @@ Cassettes record every finding with the scanner's own confidence (Greenbone's Qo
 
 Soundwave also keeps findings with no CVSS score out of VR, and they stay in the cassette files. VR has no way to show a missing score, and 0.0 would read as no impact.
 
+## Known exploited and EPSS
+
+Whether a finding shows as known exploited depends on the scanner. Vuls and Nessus report CISA KEV, and Greenbone and Rapid7 don't, so their findings all read as not exploited. None of the supported scanners reports EPSS.
+
+With `threat_intel` on, Soundwave reads CISA's KEV catalogue and FIRST's EPSS scores, matches them to each check's CVEs, and marks the check before anything is pushed, so every cassette gets the same answer.
+
+- `download` fetches both files into `threat_intel_dir` at the start of each run. A failed download keeps the previous file and the run carries on
+- `directory` reads whatever has been copied into `threat_intel_dir`, for a node with no internet access. The files are CISA's `known_exploited_vulnerabilities.json` and FIRST's `epss_scores-current.csv.gz` (or that file unpacked as `.csv`)
+- `off` is the default
+
+`kev_url` and `epss_url` can point `download` at an internal mirror.
+
+EPSS is free to use and FIRST asks for attribution, so credit it wherever the scores are shown.
+
+VR's schema has no field for either, so by default the PE console looks the same with `threat_intel` on. The marks go to the cassette files and the findings API. `threat_intel_in_vr` puts them at the front of each finding's summary in PE, for example `Known exploited (CISA KEV). EPSS 0.91, 99.8th percentile.`. VR has no banner or badge field, so the summary is the only place they can show.
+
+`metrics_file` gains two metrics, each labelled by `feed` (`kev` or `epss`). `soundwave_threat_intel_feed_timestamp_seconds` is the feed's own publish date, so a feed that has stopped updating shows as old even when the download works. `soundwave_threat_intel_checks_marked` is how many checks the feed marked on the last run.
+
 ## Package remediation
 
 VR carries a list of packages per finding, and PE marks a finding patchable on a node when one of them is among the node's available updates from `pe_patch`. Greenbone has no structured field for that, but its package checks print one block per vulnerable package:

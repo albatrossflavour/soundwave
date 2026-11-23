@@ -145,7 +145,9 @@ Namespacing is what makes collisions impossible without coordination. It also me
   "cvss_vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N",
   "cves": ["CVE-2026-1234"],
   "references": ["https://linux.oracle.com/errata/ELSA-2026-67165.html"],
-  "kev": false
+  "kev": false,
+  "epss": 0.0421,
+  "epss_percentile": 0.887
 }
 ```
 
@@ -184,7 +186,9 @@ So a cassette for either writes `null` and says so, rather than guessing. A mapp
 
 `vendor_severity` is the same enum holding the vendor's own rating, where it publishes one, and it is a different judgement rather than a worse one. Oracle rates ELSA-2025-20551 important at CVSS 5.6, because it knows how the package is built and shipped. Putting both in means a console can show one without the other looking like a bug, which is what happens when a check reads "5.6, high".
 
-`kev` says CISA has this in the Known Exploited Vulnerabilities catalogue. It is not in VR's schema and does not need to be: it is the single best field for ordering "worst first", and the worst-first ordering is the whole user interface of a mitigation tool.
+`kev` says CISA has this in the Known Exploited Vulnerabilities catalogue. A cassette sets it when its scanner reports it, which Vuls and Nessus do and Greenbone and Rapid7 don't. With `threat_intel` on, Soundwave also sets it from CISA's catalogue for every check with a matching CVE, whatever the scanner, and never clears a true the scanner wrote. It is not in VR's schema and does not need to be: it is the single best field for ordering "worst first", and the worst-first ordering is the whole user interface of a mitigation tool.
+
+`epss` is FIRST's EPSS score for the check, the estimated probability (0 to 1) that the CVE is exploited in the next 30 days. `epss_percentile` is where that score sits among all scored CVEs, so 0.887 is higher than 88.7% of them. A check covering several CVEs takes the highest score and that CVE's percentile. No cassette writes them. Soundwave adds both when `threat_intel` is on, and they're absent when it's off or when none of the check's CVEs has a score.
 
 ### findings
 

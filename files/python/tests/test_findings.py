@@ -441,6 +441,25 @@ def test_to_vr_applies_the_confidence_floor(caplog):
     assert "below confidence 70" in caplog.text
 
 
+def test_to_vr_leaves_the_summary_alone_unless_asked():
+    checks = {"greenbone:1": {**_check(), "summary": "A flaw.", "kev": True, "epss": 0.91, "epss_percentile": 0.998}}
+    data, _ = F.to_vr({"node.lab": _host()}, checks, [_finding(confidence=70)])
+    assert data[0]["vulnerabilities"][0]["summary"] == "A flaw."
+
+
+@pytest.mark.parametrize("extra, summary", [
+    ({"kev": True, "epss": 0.91, "epss_percentile": 0.998},
+     "Known exploited (CISA KEV). EPSS 0.91, 99.8th percentile. A flaw."),
+    ({"kev": True}, "Known exploited (CISA KEV). A flaw."),
+    ({"kev": False, "epss": 0.0004, "epss_percentile": 0.12}, "EPSS 0.00, 12.0th percentile. A flaw."),
+    ({"kev": False}, "A flaw."),
+])
+def test_to_vr_leads_the_summary_with_kev_and_epss_when_asked(extra, summary):
+    checks = {"greenbone:1": {**_check(), "summary": "A flaw.", **extra}}
+    data, _ = F.to_vr({"node.lab": _host()}, checks, [_finding(confidence=70)], threat_note=True)
+    assert data[0]["vulnerabilities"][0]["summary"] == summary
+
+
 @pytest.mark.parametrize("absent", [False, True])
 def test_to_vr_keeps_a_finding_that_carries_no_confidence(absent, caplog):
     """A scanner with no QoD equivalent must not have its whole push filtered.

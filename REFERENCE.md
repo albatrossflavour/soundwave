@@ -86,6 +86,11 @@ The following parameters are available in the `soundwave` class:
 * [`rapid7_timezone`](#-soundwave--rapid7_timezone)
 * [`rapid7_export_dir`](#-soundwave--rapid7_export_dir)
 * [`export_timeout`](#-soundwave--export_timeout)
+* [`threat_intel`](#-soundwave--threat_intel)
+* [`threat_intel_dir`](#-soundwave--threat_intel_dir)
+* [`threat_intel_in_vr`](#-soundwave--threat_intel_in_vr)
+* [`kev_url`](#-soundwave--kev_url)
+* [`epss_url`](#-soundwave--epss_url)
 * [`findings_api_host`](#-soundwave--findings_api_host)
 * [`findings_api_port`](#-soundwave--findings_api_port)
 * [`correlate`](#-soundwave--correlate)
@@ -438,6 +443,59 @@ Seconds the nessus and rapid7 cassettes wait for the scanner to prepare an
 export before giving up.
 
 Default value: `1800`
+
+##### <a name="-soundwave--threat_intel"></a>`threat_intel`
+
+Data type: `Enum['off', 'download', 'directory']`
+
+Mark every check with exploit data from CISA's Known Exploited
+Vulnerabilities catalogue and FIRST's EPSS scores, joined on CVE, so every
+scanner gets the same answer whether or not it reports either. `download`
+fetches both files into threat_intel_dir on each run, and a failed download
+keeps the previous file. `directory` reads whatever is copied into
+threat_intel_dir, for a node with no internet access: CISA's
+`known_exploited_vulnerabilities.json` and FIRST's
+`epss_scores-current.csv.gz`, or that file unpacked as `.csv`. `off`, the
+default, leaves checks as the scanners wrote them.
+
+Default value: `'off'`
+
+##### <a name="-soundwave--threat_intel_dir"></a>`threat_intel_dir`
+
+Data type: `Stdlib::Absolutepath`
+
+Where the two feed files live.
+
+Default value: `'/var/lib/soundwave/threat-intel'`
+
+##### <a name="-soundwave--threat_intel_in_vr"></a>`threat_intel_in_vr`
+
+Data type: `Boolean`
+
+Lead each finding's summary in PE with what threat_intel found, for example
+`Known exploited (CISA KEV). EPSS 0.91, 99.8th percentile.` PE's schema has
+no field for either, so the summary is the only place it can show. It
+changes text the console already displays, so it's off by default, and it
+does nothing while threat_intel is `off` unless a scanner reports KEV itself.
+
+Default value: `false`
+
+##### <a name="-soundwave--kev_url"></a>`kev_url`
+
+Data type: `Stdlib::HTTPUrl`
+
+Where `download` fetches the KEV catalogue from. Point it at an internal
+mirror if there is one.
+
+Default value: `'https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json'`
+
+##### <a name="-soundwave--epss_url"></a>`epss_url`
+
+Data type: `Stdlib::HTTPUrl`
+
+Where `download` fetches the EPSS scores from.
+
+Default value: `'https://epss.empiricalsecurity.com/epss_scores-current.csv.gz'`
 
 ##### <a name="-soundwave--findings_api_host"></a>`findings_api_host`
 

@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.0
+
+- `threat_intel` marks every check with CISA KEV and FIRST EPSS, matched on CVE, so a finding from a scanner that doesn't report KEV (Greenbone, Rapid7) can still be ordered worst first. `download` fetches both feeds each run and keeps the previous file if a download fails. `directory` reads files copied into `threat_intel_dir`, for a node with no internet access. `off` is the default
+- Checks in the cassette files and the findings API push gain `epss` and `epss_percentile`. `kev` is set from CISA's catalogue as well as from the scanner, and a true from the scanner is never cleared
+- `threat_intel_in_vr` leads each finding's summary in PE with the KEV and EPSS marks, since VR's schema has no field for them. Off by default
+- `metrics_file` gains `soundwave_threat_intel_feed_timestamp_seconds` and `soundwave_threat_intel_checks_marked`, both by `feed`
+
 ## 0.2.3
 
 - A registration whose last answer is 201 (VR has just created the transformer) is `pending`, where 0.2.2 called it `error` and failed the run. That's the answer with `max_retries` at 1. Any answer Soundwave doesn't recognise, a rejected transformer included, is still `error`
