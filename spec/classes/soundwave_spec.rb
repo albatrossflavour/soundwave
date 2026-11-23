@@ -190,6 +190,36 @@ describe 'soundwave' do
         it { is_expected.to compile.with_all_deps }
       end
 
+      context 'with threat intel off, the default' do
+        it { is_expected.not_to contain_file('/var/lib/soundwave/threat-intel') }
+        it { expect(config_ini).to include("threat_intel = off\n") }
+      end
+
+      context 'with threat intel downloaded' do
+        let(:params) { required.merge('threat_intel' => 'download') }
+
+        it { is_expected.to compile.with_all_deps }
+        it { is_expected.to contain_file('/var/lib/soundwave/threat-intel').with(ensure: 'directory', mode: '0770') }
+
+        it 'tells the Python where to fetch from and keep the files' do
+          expect(config_ini).to include("threat_intel = download\nthreat_intel_dir = /var/lib/soundwave/threat-intel\n")
+          expect(config_ini).to include("kev_url = https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json\n")
+          expect(config_ini).to include("epss_url = https://epss.empiricalsecurity.com/epss_scores-current.csv.gz\n")
+        end
+      end
+
+      context 'with threat intel read from a directory Soundwave already manages' do
+        let(:params) { required.merge('threat_intel' => 'directory', 'threat_intel_dir' => '/var/lib/soundwave/cassettes') }
+
+        it { is_expected.to compile.with_all_deps }
+      end
+
+      context 'with an internal mirror whose URL carries a %' do
+        let(:params) { required.merge('threat_intel' => 'download', 'kev_url' => 'https://mirror.example.com/kev%20feed.json') }
+
+        it { expect(config_ini).to include("kev_url = https://mirror.example.com/kev%%20feed.json\n") }
+      end
+
       context 'with % in an export path and the nessus url' do
         let(:params) do
           required.merge('nessus_cassette' => true, 'nessus_url' => 'https://nessus.example.com/%7Esvc',

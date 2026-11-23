@@ -578,7 +578,7 @@ def compose_check(members):
 
     Score, version and vector from `_score_source`, the highest per-CVE score,
     and the severity derived from that score rather than inherited. CVEs and references are the
-    union, KEV is sticky, and the name and summary are the narrowest member's
+    union, KEV is sticky, EPSS the highest, and the name and summary are the narrowest member's
     with every other member attributed after it.
     """
     cassette, finding, narrow = _narrowest(members)
@@ -586,6 +586,9 @@ def compose_check(members):
     check["cves"] = _union(c.get("cves") for _, _, c in members)
     check["references"] = _union(c.get("references") for _, _, c in members)
     check["kev"] = any(c.get("kev") for _, _, c in members)
+    epss_scored = [(c["epss"], c.get("epss_percentile")) for _, _, c in members if c.get("epss") is not None]
+    if epss_scored:
+        check["epss"], check["epss_percentile"] = max(epss_scored)
     scored = _score_source(members)
     for field in ("cvss_score", "cvss_version", "cvss_vector"):
         check[field] = scored.get(field)

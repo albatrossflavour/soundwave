@@ -56,6 +56,8 @@ class RunMetrics:
         self.correlated = None
         # Composition stats for the VR push, or None when composition is off.
         self.composed = None
+        # {"feeds": {kev|epss: publish epoch}, "marked": {kev|epss: checks}}, or None when off.
+        self.threat_intel = None
 
     def _previous_success(self):
         try:
@@ -152,6 +154,16 @@ class RunMetrics:
                "Hosts pushed with no findings. They are sent on purpose: a host left out of a push "
                "keeps whatever VR already held for it.", [({}, self.hosts_clean)])
 
+        if self.threat_intel:
+            feeds = sorted(self.threat_intel["feeds"].items())
+            metric(f"{PREFIX}_threat_intel_feed_timestamp_seconds",
+                   "When each exploit feed was published, by its own date. A download that fails keeps "
+                   "the previous file, so this is how a stale feed shows.",
+                   [({"feed": name}, published) for name, published in feeds])
+            metric(f"{PREFIX}_threat_intel_checks_marked",
+                   "Checks each feed marked on the last run: for kev, checks the scanner had not already "
+                   "called known exploited; for epss, checks given a score.",
+                   [({"feed": name}, self.threat_intel["marked"].get(name)) for name, _ in feeds])
         if self.cassettes:
             items = sorted(self.cassettes.items())
             metric(f"{PREFIX}_cassette_clock_skew_seconds",

@@ -30,6 +30,7 @@ from datetime import datetime, timezone
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from lib import findings as F  # noqa: E402
+from lib import threat_intel  # noqa: E402
 from lib.config_helper import load_transformer_parameters  # noqa: E402
 from lib.findings_api_client import push as push_findings  # noqa: E402
 from lib.metrics import RunMetrics  # noqa: E402
@@ -274,6 +275,7 @@ def run(pe_params, defaults, metrics):
     """
     cassette_dir = defaults.get("cassette_dir", "")
     documents = F.read_cassettes(cassette_dir)
+    apply_threat_intel(defaults, documents, metrics)
     recorded = True
     if documents:
         logger.info(f"Merging {len(documents)} cassette(s): "
@@ -293,6 +295,25 @@ def run(pe_params, defaults, metrics):
     # Metrics that couldn't be recorded fail the run, but only once the VR
     # push has had its turn.
     return code if recorded else 1
+
+
+def apply_threat_intel(defaults, documents, metrics):
+    """KEV and EPSS onto every cassette's checks, before anything reads them.
+
+    Before the findings API push as well as the VR merge, so both see the same
+    checks. A failure here is logged and stops nothing: findings without
+    exploit data still go.
+    """
+    try:
+        threat_intel.refresh(defaults)
+        kev, epss, feeds = threat_intel.load(defaults)
+        if not feeds:
+            return
+        marked = threat_intel.enrich(documents, kev, epss)
+        metrics.threat_intel = {"feeds": feeds, "marked": marked}
+        logger.info(f"threat intel: {marked['kev']} check(s) newly marked KEV, {marked['epss']} given an EPSS score")
+    except Exception:
+        logger.exception("threat intel: not applied")
 
 
 def _record_cassettes_safely(documents, metrics):

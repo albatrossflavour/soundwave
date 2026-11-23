@@ -128,6 +128,23 @@
 # @param export_timeout
 #   Seconds the nessus and rapid7 cassettes wait for the scanner to prepare an
 #   export before giving up.
+# @param threat_intel
+#   Mark every check with exploit data from CISA's Known Exploited
+#   Vulnerabilities catalogue and FIRST's EPSS scores, joined on CVE, so every
+#   scanner gets the same answer whether or not it reports either. `download`
+#   fetches both files into threat_intel_dir on each run, and a failed download
+#   keeps the previous file. `directory` reads whatever is copied into
+#   threat_intel_dir, for a node with no internet access: CISA's
+#   `known_exploited_vulnerabilities.json` and FIRST's
+#   `epss_scores-current.csv.gz`, or that file unpacked as `.csv`. `off`, the
+#   default, leaves checks as the scanners wrote them.
+# @param threat_intel_dir
+#   Where the two feed files live.
+# @param kev_url
+#   Where `download` fetches the KEV catalogue from. Point it at an internal
+#   mirror if there is one.
+# @param epss_url
+#   Where `download` fetches the EPSS scores from.
 # @param findings_api_host
 #   Host running a findings API, for the author's own consumer, whose API isn't
 #   published. Unset disables the push, which is the default. Set, Soundwave
@@ -228,6 +245,10 @@ class soundwave (
   Boolean $correlate                  = false,
   Boolean $compose_findings           = false,
   Optional[String[1]] $correlation_exceptions        = undef,
+  Enum['off', 'download', 'directory'] $threat_intel = 'off',
+  Stdlib::Absolutepath $threat_intel_dir    = '/var/lib/soundwave/threat-intel',
+  Stdlib::HTTPUrl $kev_url            = 'https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json',
+  Stdlib::HTTPUrl $epss_url           = 'https://epss.empiricalsecurity.com/epss_scores-current.csv.gz',
   Optional[Stdlib::Host] $findings_api_host          = undef,
   Stdlib::Port $findings_api_port     = 10051,
   Optional[Stdlib::Absolutepath] $post_body_filepath = undef,
@@ -356,6 +377,16 @@ class soundwave (
     mode   => '0770',
   }
 
+  # cassette_group lets whatever copies the feeds in write there.
+  if $threat_intel != 'off' and !($threat_intel_dir in ['/var/lib/soundwave', $cassette_dir] + $_export_dirs) {
+    file { $threat_intel_dir:
+      ensure => directory,
+      owner  => 'root',
+      group  => $cassette_group,
+      mode   => '0770',
+    }
+  }
+
   if $run_in_venv {
     python::pyvenv { 'soundwave-env':
       ensure     => present,
@@ -458,6 +489,10 @@ class soundwave (
         'correlate'               => $correlate,
         'compose_findings'        => $compose_findings,
         'correlation_exceptions'  => $correlation_exceptions,
+        'threat_intel'            => $threat_intel,
+        'threat_intel_dir'        => $threat_intel_dir,
+        'kev_url'                 => $kev_url,
+        'epss_url'                => $epss_url,
         'findings_api_host'       => $findings_api_host,
         'findings_api_port'       => $findings_api_port,
         'nessus_url'              => $nessus_url,

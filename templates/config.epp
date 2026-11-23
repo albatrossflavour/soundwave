@@ -22,6 +22,10 @@ Integer[0, 100] $min_confidence,
 Boolean $correlate,
 Boolean $compose_findings,
 Optional[String[1]] $correlation_exceptions,
+String[1] $threat_intel,
+String[1] $threat_intel_dir,
+String[1] $kev_url,
+String[1] $epss_url,
 Optional[String[1]] $findings_api_host,
 Stdlib::Port $findings_api_port,
 Optional[String[1]] $nessus_url,
@@ -48,6 +52,10 @@ min_confidence = <%= $min_confidence %>
 correlate = <%= bool2num($correlate) %>
 compose_findings = <%= bool2num($compose_findings) %>
 correlation_exceptions = <%= $correlation_exceptions %>
+threat_intel = <%= $threat_intel %>
+threat_intel_dir = <%= $threat_intel_dir %>
+kev_url = <%= regsubst($kev_url, '%', '%%', 'G') %>
+epss_url = <%= regsubst($epss_url, '%', '%%', 'G') %>
 findings_api_host = <%= $findings_api_host %>
 findings_api_port = <%= $findings_api_port %>
 [PE]
