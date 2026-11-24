@@ -2,7 +2,7 @@
 
 ## Why
 
-PE holds a new integration as pending until someone accepts it, and takes no findings from it until then. Soundwave skips only the VR push while it waits. The cassette metrics and the findings API push, if `findings_api_host` is set, go ahead on every run regardless.
+PE holds a new integration as pending until someone accepts it, and takes no findings from it until then. Soundwave skips only the VR push while it waits. The cassette metrics and the findings API push from [step 4](04-findings-api.md) go ahead on every run regardless.
 
 ## Before you start
 
@@ -26,11 +26,9 @@ Transformer ID Registered and Active.
 Results added successfully
 ```
 
-`metrics_file`, if set, has `soundwave_vr_transformer_state{state="active"} 1`.
+The vulnerabilities page in the PE console shows findings against your nodes, and `metrics_file`, if set, has `soundwave_vr_transformer_state{state="active"} 1`.
 
-and the vulnerabilities page in the PE console shows findings against your nodes.
-
-From then on the timer runs nightly. A night with no new scan logs `PE already holds scan date ...; not pushing`, which is normal. To watch it, set [`metrics_file`](../../REFERENCE.md#-soundwave--metrics_file) and alert on the cassette timestamps, and on `soundwave_vr_transformer_state{state="pending"} == 1` so a transformer nobody has accepted doesn't go unnoticed. A pending run counts as a success in `soundwave_last_run_success`, because nothing a rerun could fix has gone wrong. It doesn't advance `soundwave_last_success_timestamp_seconds`, which only moves when VR holds the current scan, so alert on that one's age for "nothing reached VR in N days".
+From then on the timer runs nightly. A night with no new scan logs `PE already holds scan date ...; not pushing`, which is normal. To watch it, set [`metrics_file`](../../REFERENCE.md#-soundwave--metrics_file), if you didn't in step 2, and alert on the cassette timestamps, and on `soundwave_vr_transformer_state{state="pending"} == 1` so a transformer nobody has accepted doesn't go unnoticed. A pending run counts as a success in `soundwave_last_run_success`, because nothing a rerun could fix has gone wrong. It doesn't advance `soundwave_last_success_timestamp_seconds`, which only moves when VR holds the current scan, so alert on that one's age for "nothing reached VR in N days".
 
 ## If it fails
 
@@ -43,5 +41,7 @@ From then on the timer runs nightly. A night with no new scan logs `PE already h
 | PE was reset and nothing is pushed | Soundwave remembers the last scan date PE accepted | See [Troubleshooting](../pushing.md#troubleshooting) |
 
 ## Next
+
+[Send every finding to a findings API](04-findings-api.md), if you have one.
 
 To add a scanner later, follow its guide, then turn its cassette on as in step 2.

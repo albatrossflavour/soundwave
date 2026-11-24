@@ -11,7 +11,7 @@
 
 ### Tasks
 
-* [`run_soundwave`](#run_soundwave): Collect the Greenbone cassette and push the merged findings to PE
+* [`run_soundwave`](#run_soundwave): Run every cassette that's turned on and push the merged findings to PE
 
 ## Classes
 
@@ -778,7 +778,7 @@ Default value: `true`
 
 ### <a name="run_soundwave"></a>`run_soundwave`
 
-Collect the Greenbone cassette and push the merged findings to PE
+Run every cassette that's turned on and push the merged findings to PE
 
 **Supports noop?** false
 

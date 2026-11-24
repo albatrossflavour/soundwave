@@ -7,6 +7,9 @@
 - `pe_token` is now optional, and works as before. Set it or `token_password`, not both
 - Both need [conductor-rbac](https://github.com/albatrossflavour/conductor-rbac) in the Puppetfile. It is not a metadata dependency, and the catalogue fails with a message naming it if either is used without it
 
+- The install guide gains an optional [step 4](https://github.com/albatrossflavour/soundwave/blob/main/docs/guide/04-findings-api.md) for `findings_api_host`, and shows `metrics_file` being set in step 2, where the later checks already read it. The README is reordered, with what a run does as a list and the optional settings in one table
+- The `run_soundwave` task's description says it runs every cassette, where it said only Greenbone's
+
 ## 0.3.0
 
 - `threat_intel` marks every check with CISA KEV and FIRST EPSS, matched on CVE, so a finding from a scanner that doesn't report KEV (Greenbone, Rapid7) can still be ordered worst first. `download` fetches both feeds each run and keeps the previous file if a download fails. `directory` reads files copied into `threat_intel_dir`, for a node with no internet access. `off` is the default

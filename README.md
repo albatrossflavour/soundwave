@@ -4,27 +4,19 @@
 
 Each scanner plugs in as a cassette, and the module ships with cassettes for [Greenbone](https://github.com/albatrossflavour/openvas) and [Vuls](https://github.com/albatrossflavour/vuls). A cassette reads one scanner and writes a scanner-neutral [findings file](https://github.com/albatrossflavour/soundwave/blob/main/docs/findings-file.md), and Soundwave merges every cassette's file and pushes one set. Adding a scanner means adding a cassette, with no change to Soundwave or to PE.
 
-## Cassettes
-
-| Cassette | Reads | Mostly finds | Turned on by |
-|---|---|---|---|
-| `openvas` | Greenbone, from [the openvas module](https://github.com/albatrossflavour/openvas) | Network, TLS, and configuration problems, and Ubuntu and Debian package advisories | `openvas_cassette`, on by default |
-| `vuls` | Vuls, from [the vuls module](https://github.com/albatrossflavour/vuls) | EL package errata and Windows KBs | `vuls_cassette`, off by default |
-
-Each cassette reads its scanner on the node it runs on, so Soundwave goes on the scanner node, and with both scanners they share it. Where two scanners report what looks like the same weakness, Soundwave counts it and by default still sends both. See [Correlating](https://github.com/albatrossflavour/soundwave/blob/main/docs/findings-file.md#correlating).
-
-## How it works
-
-A nightly systemd timer runs each cassette that's turned on, records the cassette metrics, and pushes each cassette to the findings API if `findings_api_host` is set. It then registers with PE if it hasn't already, merges the cassette files, and posts the result to VR. A cassette that fails leaves its previous file in place and the push still goes, so one scanner's problem doesn't hold back the others. `metrics_file` reports each cassette's age, so a stale one shows up, and whether VR has accepted the transformer. Until it has, the VR push is skipped and the metrics are written anyway. The `run_soundwave` Bolt task starts a run on demand.
-
-With `threat_intel` on, every check is also marked with CISA KEV and FIRST EPSS, whether or not its scanner reports them. See [what Soundwave sends to PE](https://github.com/albatrossflavour/soundwave/blob/main/docs/pushing.md).
-
 ## Requirements
 
 - Puppet Enterprise Advanced with [VR enabled](https://help.puppet.com/pe/current/topics/advanced-patching.htm), and a PE RBAC token that can push to it, or [a PE user the primary manages](#pe-access) so the node mints its own
 - TCP 8146 open from the Soundwave node to the PE primary, where VR listens
 - Puppet 8 or 9 and an agent certificate. Secrets are encrypted to it with `node_encrypt`, and the push authenticates with it
 - Python 3.9 or later from the OS, on Ubuntu 22.04, 24.04, or 26.04, Debian 11 or 12, Red Hat 8 or 9, or AlmaLinux 9 or 10
+- A working scanner on the same node. Each cassette reads its scanner locally, so Soundwave goes on the scanner node. To use both scanners, run them on the same node
+
+## Installing
+
+Get a scanner working first with [the openvas guide](https://github.com/albatrossflavour/openvas/blob/main/docs/guide/README.md) or [the vuls guide](https://github.com/albatrossflavour/vuls/blob/main/docs/guide/README.md). Each ends by handing over to [the Soundwave install guide](https://github.com/albatrossflavour/soundwave/blob/main/docs/guide/README.md), which goes from a working scanner to findings in VR, with a check at the end of each step.
+
+The only setting Soundwave has to be given is how it gets its PE token, `pe_token` or `token_password`, as [PE access](#pe-access) covers.
 
 ## PE access
 
@@ -62,9 +54,33 @@ class { 'soundwave':
 
 The node mints its token from `pe_host`, the PE primary, on port 4433. Set `token_server` and `token_port` if the console is somewhere else. Tokens last `token_lifetime` (30 days) and are replaced after `token_renew_after` (21 days), so the agent has a week of runs to renew one before it expires.
 
-## Getting started
+## Cassettes
 
-Get a scanner working first with [the openvas guide](https://github.com/albatrossflavour/openvas/blob/main/docs/guide/README.md) or [the vuls guide](https://github.com/albatrossflavour/vuls/blob/main/docs/guide/README.md). Each ends by handing over to [the Soundwave install guide](https://github.com/albatrossflavour/soundwave/blob/main/docs/guide/README.md), which goes from a working scanner to findings in VR, with a check at the end of each step.
+| Cassette | Reads | Mostly finds | Turned on by |
+|---|---|---|---|
+| `openvas` | Greenbone, from [the openvas module](https://github.com/albatrossflavour/openvas) | Network, TLS, and configuration problems, and Ubuntu and Debian package advisories | `openvas_cassette`, on by default |
+| `vuls` | Vuls, from [the vuls module](https://github.com/albatrossflavour/vuls) | EL package errata and Windows KBs | `vuls_cassette`, off by default |
+
+## What a run does
+
+A systemd timer starts a run nightly, and the `run_soundwave` task starts one on demand. Each run:
+
+1. Runs every cassette that's turned on. One that fails leaves its previous file in place and the run carries on
+2. Marks every check with CISA KEV and FIRST EPSS, if `threat_intel` is on
+3. Sends each cassette, unmerged, to the findings API, if `findings_api_host` is set
+4. Registers with PE, if it hasn't already. PE holds a new integration as pending until someone accepts it in the console
+5. Merges the cassette files and posts the result to VR. This is the only part skipped while PE still has the integration pending
+6. Writes `metrics_file`, if set, with each cassette's age and whether PE has accepted the integration
+
+## Optional settings
+
+| Setting | What it does | Read |
+|---|---|---|
+| `metrics_file` | Writes each run's result as a node_exporter textfile, so a stale cassette or an integration nobody has accepted can be alerted on | [Install guide, step 3](https://github.com/albatrossflavour/soundwave/blob/main/docs/guide/03-accept.md) |
+| `min_confidence` | The confidence a finding needs to reach VR, 70 by default. The cassette files keep every finding | [Confidence](https://github.com/albatrossflavour/soundwave/blob/main/docs/pushing.md#confidence) |
+| `threat_intel`, `threat_intel_in_vr` | Marks every check with CISA KEV and FIRST EPSS, whether or not its scanner reports them, and can show the marks in PE | [Known exploited and EPSS](https://github.com/albatrossflavour/soundwave/blob/main/docs/pushing.md#known-exploited-and-epss) |
+| `correlate`, `compose_findings` | Counts where two scanners report what looks like the same weakness, and can send each such set to VR as one record. By default both are sent | [Correlating](https://github.com/albatrossflavour/soundwave/blob/main/docs/findings-file.md#correlating) |
+| `findings_api_host` | Sends every cassette, unmerged and with every finding, to a findings API as well as to VR | [Install guide, step 4](https://github.com/albatrossflavour/soundwave/blob/main/docs/guide/04-findings-api.md) |
 
 ## Reference
 

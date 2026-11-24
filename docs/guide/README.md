@@ -18,3 +18,4 @@ Soundwave goes on the scanner node, because each cassette reads its scanner loca
 1. [Prepare PE](01-pe.md)
 2. [Install Soundwave](02-install.md)
 3. [Accept it in PE](03-accept.md)
+4. [Send every finding to a findings API](04-findings-api.md), which is optional

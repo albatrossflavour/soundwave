@@ -28,6 +28,12 @@ soundwave::openvas_cassette: false    # without Greenbone
 
 If the scanner's catalogue is compiled by a compiler rather than the primary, also set `soundwave::pe_host` to the primary, as step 1 says.
 
+To have each run write what it did as a node_exporter textfile, set [`metrics_file`](../../REFERENCE.md#-soundwave--metrics_file) to a path in the textfile collector's directory. It's unset by default, and the checks in this guide that read it say so:
+
+```yaml
+soundwave::metrics_file: /var/lib/node_exporter/textfile/soundwave.prom
+```
+
 The openvas cassette needs nothing else here. It logs in with `openvas::scan_observer_user` and `openvas::scan_observer_password`, and reads the module's host map, by itself.
 
 Add the class to the scanner's profile, run the agent, then start a run:
@@ -60,7 +66,7 @@ Registration successful. Transformer is Pending Activation.
 Skipping the VR push until the transformer is accepted in the PE console.
 ```
 
-The run still exits 0 and writes `metrics_file`, with `soundwave_vr_transformer_state{state="pending"} 1`.
+The run still exits 0. `metrics_file`, if set, has `soundwave_vr_transformer_state{state="pending"} 1`.
 
 ## If it fails
 
@@ -76,4 +82,4 @@ A cassette that fails leaves its previous file and the run carries on, so read t
 
 ## Next
 
-[Accept it in PE](03-accept.md).
+[Accept it in PE](03-accept.md). If you're also sending findings to a findings API, [step 4](04-findings-api.md) doesn't wait on that.
